@@ -15,7 +15,7 @@
 
 - Leo reviews and merges the Phase 1 spec pull request. Merging approves the spec.
 - Build plan for Phase 1 (`superpowers:writing-plans`), approved by Leo before any app code.
-- Answers needed from Leo: the Angel's Pizza brand code, the source of the officer list, who may edit stores, and when Admin delete is built (spec §12).
+- Leo's answers of 2026-10-19 are recorded in spec §12: brand code `AP`, officers pasted into a `SEED_OFFICERS` tab, Admin-only edits of stores, Admin delete and recycle bin later in v1.
 - Settle the extension limit (CFG-047) and the probation start in TDMS before gate G2.
 
 ## Blockers and open items

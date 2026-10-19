@@ -18,7 +18,7 @@ Phase 1 builds what every later module needs: master data, sign-in with a role c
 | Interim sign-in (name list, plus a PIN for Admin) and a role check on every call | Password sign-in (starts Phase 2, before any real record is loaded; see §6) |
 | Audit log, record history, ID counters | Uniforms (Phase 3), dashboard and reports (Phase 4) |
 | Import review: a dry run on a copy of the legacy sheet, written to a separate review sheet | Writing any legacy record into a `TLMI_DB` table (Phase 2) |
-| Unit tests, mock transport, browser checks, deploy to DEV and TEST | LIVE deploy, AI, email, Admin delete and recycle bin |
+| Unit tests, mock transport, browser checks, deploy to DEV and TEST | LIVE deploy, AI, email; Admin delete and recycle bin (later in v1, §12 item 4) |
 
 ## 2. Decisions taken in the design
 
@@ -133,14 +133,14 @@ Phase 1 creates these tabs in `TLMI_DB`: `brands`, `regions`, `locations`, `stat
 
 | Table | Profile | Seed and rules |
 | --- | --- | --- |
-| `brands` | MUT | One row: Angel's Pizza. The brand `code` is permanent (value to be confirmed, §12). |
+| `brands` | MUT | One row: Angel's Pizza, `code` = `AP` (§12, item 1). The code is permanent. |
 | `regions` | MUT | Distinct region values from column B of the SETTINGS tab of the legacy copy, trimmed. A name that matches another only by case or spacing is skipped and reported. |
 | `locations` | MUT | The store list from the SETTINGS tab, trimmed. Field `name` (the TDMS name). `location_type` = Store, brand = Angel's Pizza, region from the same SETTINGS row. A duplicate name is skipped and reported; a store whose region is not found is rejected and reported. Admin can add, edit and deactivate. |
 | `stations` | MUT | Food Prep, Pizza Maker, Cashier, Service, Commis, Dough Maker, scoped to Angel's Pizza. Legacy spellings such as "FOOD PREP*" are not seeded; they are mapped in the import review. |
 | `lookups` | MUT | Category `location_type`: Store (system value), Commissary, Office, Call Center, Warehouse (TDMS ENT-003). Category `tl_close_reason`: Disqualified. Categories `tl_quit_reason` (CFG-018) and `appointment_letter_status` are created empty; their values are still open (DECISIONS). |
 | `assessment_components` | MUT | Entry stage: ISTV, Tech Val Food Prep, Tech Val Pizza Maker, TL entry exam Food Prep, TL entry exam Pizza Maker (required). Certification stage: Checklist, Exam (required), Kitchen feedback, Manager feedback (at least one feedback is required, enforced in Phase 2). Admin can rename and edit; the weights are not stored here (see `settings`). |
 | `settings` | VER | See the table below. Every change inserts a new version and keeps the old one. |
-| `users` | MUT | Officers from the list `CONFIG_TRAINERS` (§12). Role is set by Admin. `hr_employee_no` may be blank in Phase 1. `password_hash` and `salt` stay empty until Phase 2. |
+| `users` | MUT | Officers from the `SEED_OFFICERS` tab, a pasted copy of `CONFIG_TRAINERS` (§12, item 2). Role is set by Admin. `hr_employee_no` may be blank in Phase 1. `password_hash` and `salt` stay empty until Phase 2. |
 
 **Settings seeded** (the key is the TDMS configuration ID; the value is stored as text with a `value_type`):
 
@@ -214,21 +214,21 @@ In a patch, an absent field is unchanged and `null` clears the field where the s
 **Gate G1 is passed when all of these are true:**
 
 1. All five roles sign in on TEST; the Admin signs in with the PIN.
-2. The master lists are seeded and Leo has checked them against the SETTINGS tab and `CONFIG_TRAINERS`.
+2. The master lists are seeded and Leo has checked them against the SETTINGS tab and the `SEED_OFFICERS` tab.
 3. An Admin edits a store and sees the history and audit rows; a stale edit returns `CONFLICT`.
 4. Every non-Admin gets `FORBIDDEN` on every Admin method.
 5. The import review ran on a copy of the 276-row sheet; all six tabs are present; the summary equals 276 rows and the status counts; nothing was written to the legacy copy or to any Team Leader table.
 6. Unit tests, the browser checks at three widths and the pull request review pass, with no critical or major finding open.
 7. DEV and TEST are deployed through `clasp`; LIVE is untouched.
 
-## 12. Open details
+## 12. Answers and open details
 
-**Needs Leo's answer (they change what is built):**
+**Answered by Leo on 2026-10-19:**
 
-1. **Brand code** for Angel's Pizza. TDMS keeps a permanent code per brand.
-2. **Source of the officer list.** `CONFIG_TRAINERS` is in the TOIS PMS DATABASE sheet. To avoid giving TLMI access to that sheet, the proposal is that the owner pastes the list (name, role, and employee number if known) into a tab named `SEED_OFFICERS` in the legacy copy.
-3. **Who may edit stores, stations, brands and regions.** TDMS (PERM-061) lets the Training Manager and Senior Training Manager do this as well. This spec keeps it Admin-only, as in PLAN §3. Widening is a one-line change in the permission table.
-4. **When Admin delete and the recycle bin are built.** PLAN §3 lists them for Admin; Phase 1 has deactivate and reactivate only.
+1. **Brand code** for Angel's Pizza: `AP`. Leo wrote "AP/AP001". This spec reads `AP` as the permanent brand `code`; the `BRD-` ID is generated by the server. If `AP001` was meant as the code, change it before the first seed run, because a brand code cannot be changed afterwards.
+2. **Source of the officer list.** `CONFIG_TRAINERS` is in the TOIS PMS DATABASE sheet. To avoid giving TLMI access to that sheet, the owner pastes the list (name, role, and employee number if known) into a tab named `SEED_OFFICERS` in the legacy copy.
+3. **Who may edit stores, stations, brands and regions:** Admin only. TDMS (PERM-061) also lets the Training Manager and Senior Training Manager do this; TLMI v1 does not. Widening is a one-line change in the permission table.
+4. **Admin delete and the recycle bin:** part of v1 (Phases 0 to 4) but not Phase 1, which has deactivate and reactivate only. Proposed phase: Phase 4, with the other Admin tools. The build plan for that phase confirms it.
 
 **Decided in this spec (tell me if you disagree):**
 
