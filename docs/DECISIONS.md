@@ -6,7 +6,7 @@ Gate G0 decisions were closed on **2026-10-19** by adopting the TDMS answer. TLM
 
 | # | Decision | TDMS reference |
 | --- | --- | --- |
-| 1 | Certification: final = 0.30 x checklist + 0.40 x exam + 0.30 x feedback; feedback = 0.60 x kitchen + 0.40 x manager; pass mark 85. Weights and mark are Admin settings, saved with each certification. | RULE-102, CFG-044, D008 Adopted for TLMI by Leo on 2026-10-19. TDMS still lists it as unconfirmed (D053, CD-26); TLMI does not gate certification on it. |
+| 1 | Certification: final = 0.30 x checklist + 0.40 x exam + 0.30 x feedback; feedback = 0.60 x kitchen + 0.40 x manager; pass mark 85. Weights and mark are Admin settings, saved with each certification. | RULE-102, CFG-044, D008. Adopted for TLMI by Leo on 2026-10-19. TDMS still lists it as unconfirmed (D053, CD-26); TLMI does not gate certification on it. |
 | 2 | Extension: default 30 days, numbered extension rows, record returns to the certification check. | RULE-104, WF-002 step 5 |
 | 3 | Entry grades: five by default (ISTV, Tech Val Food Prep, Tech Val Pizza Maker, TL entry exam Food Prep, TL entry exam Pizza Maker); list kept by Admin. | D064, RULE-101 |
 | 4 | Disqualified is not a state. The 4 legacy Disqualified records import as Failed with the reason "Disqualified". | WF-002 states (no Disqualified state); TLMI decision 2026-10-19 |
