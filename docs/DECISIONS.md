@@ -6,10 +6,10 @@ Gate G0 decisions were closed on **2026-10-19** by adopting the TDMS answer. TLM
 
 | # | Decision | TDMS reference |
 | --- | --- | --- |
-| 1 | Certification: final = 0.30 x checklist + 0.40 x exam + 0.30 x feedback; feedback = 0.60 x kitchen + 0.40 x manager; pass mark 85. Weights and mark are Admin settings, saved with each certification. | RULE-102, CFG-044, D008 (formula itself unconfirmed: D053) |
+| 1 | Certification: final = 0.30 x checklist + 0.40 x exam + 0.30 x feedback; feedback = 0.60 x kitchen + 0.40 x manager; pass mark 85. Weights and mark are Admin settings, saved with each certification. | RULE-102, CFG-044, D008 Adopted for TLMI by Leo on 2026-10-19. TDMS still lists it as unconfirmed (D053, CD-26); TLMI does not gate certification on it. |
 | 2 | Extension: default 30 days, numbered extension rows, record returns to the certification check. | RULE-104, WF-002 step 5 |
 | 3 | Entry grades: five by default (ISTV, Tech Val Food Prep, Tech Val Pizza Maker, TL entry exam Food Prep, TL entry exam Pizza Maker); list kept by Admin. | D064, RULE-101 |
-| 4 | Disqualified is not a state. The 4 legacy Disqualified records import as Failed with the reason "Disqualified". | WF-002 states, D068 |
+| 4 | Disqualified is not a state. The 4 legacy Disqualified records import as Failed with the reason "Disqualified". | WF-002 states (no Disqualified state); TLMI decision 2026-10-19 |
 | 5 | Access: Store Heads and Area Managers have no access to Team Leader records; there is no HR role. | API-CONTRACT 8.9 (`tl.list`: SH/AM never), D002 |
 | 6 | Quit closes as Quit, never as Failed; re-enrollment allowed; open TLTC plan cancelled. | D068, RULE-105 |
 | 7 | Officers certify, extend and close with no approval step. | D067, RULE-103 |
@@ -23,7 +23,7 @@ Gate G0 decisions were closed on **2026-10-19** by adopting the TDMS answer. TLM
 | Item | TDMS reference | Interim in TLMI |
 | --- | --- | --- |
 | Extension limit | CFG-047, CD-11 | Extending is blocked until Admin sets the limit (before gate G2). |
-| When probation starts: at enrollment, or when the fifth entry grade is saved | WF-002 step 2, ISS-P1-04 | Not decided; TDMS answer applies. |
+| When probation starts: at enrollment, or when the fifth entry grade is saved | WF-002 step 2 (§11) | Not decided; TDMS answer applies. |
 | Quit reason list | CFG-018, CD-06 | Admin list; values to be supplied. |
 | Feedback when only one of the two forms is returned | RULE-102, D053, CD-26 | At least one feedback score is required; weighting for a single form is open. |
 | Whether "higher" than Supervisor includes Admin for promotion | AMB-02, PERM-034 | Promotion stays blocked for Admin. |

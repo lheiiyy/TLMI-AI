@@ -6,14 +6,14 @@ Each rule cites its TDMS ID. Text is a summary; the TDMS file `docs/BUSINESS-RUL
 | --- | --- | --- |
 | RULE-100 | Enrollment is for an existing person, linked by person ID. One open enrollment per person. Deadline = entry date + probation period (default 3 months, Admin setting). | RULE-100, CFG-040, WF-002 #1 |
 | RULE-101 | All required entry grades (default five) are recorded before the certification check. | RULE-101, D064, WF-002 #3 |
-| RULE-102 | Certification needs the checklist grade, the exam grade and at least one feedback score. Final = 0.30 x checklist + 0.40 x exam + 0.30 x feedback; feedback = 0.60 x kitchen + 0.40 x manager; pass mark 85. Weights and mark are saved at certification. Formula not yet confirmed by Leo. | RULE-102, CFG-044, D008, D053 |
+| RULE-102 | Certification needs the checklist grade, the exam grade and at least one feedback score. Final = 0.30 x checklist + 0.40 x exam + 0.30 x feedback; feedback = 0.60 x kitchen + 0.40 x manager; pass mark 85. Weights and mark are saved at certification. Adopted for TLMI by Leo on 2026-10-19. TDMS still lists it as unconfirmed (D053, CD-26); TLMI does not gate certification on it. | RULE-102, CFG-044, D008, D053 |
 | RULE-103 | The officer, or a Supervisor or higher, certifies, extends or closes. No approval step. | RULE-103, D067 |
 | RULE-104 | Extend: deadline moves by the extension length (default 30 days); a numbered extension row records old deadline, new deadline and reason; the record returns to the certification check. Blocked until the extension limit is set. | RULE-104, CFG-047 |
-| RULE-105 | Quit is allowed at any open stage with a date and a reason from the Admin list. It closes as Quit, not Failed, cancels the open TLTC plan, and allows re-enrollment. | RULE-105, D068, CFG-018 |
+| RULE-105 | Quit is allowed at any open stage with a date and a reason from the Admin list. It closes as Quit, not Failed, cancels the open TLTC plan (not applicable in TLMI v1: no visit plans), and allows re-enrollment. | RULE-105, D068, CFG-018 |
 | RULE-106 | Only a Certified Team Leader can be Promoted, and only by a Supervisor or higher. Admin promotion is blocked until TDMS decides. | RULE-106, D031, AMB-02 |
 | RULE-107 | Every change is a dated history row (old value, new value, user, time). Extensions are numbered. Averages are computed, never typed. Several certifying officers are stored one per row. | RULE-107, D048 |
 | RULE-108 | Uniforms: one row per transaction (issue, return, receive) with item, size, quantity, DR number, date and user. A repeated DR number, item and size shows a warning. | RULE-108, D072 |
-| RULE-109 | An enrollment with no officer, visit or certification by its deadline goes to the supervisor queue and the daily digest. A deadline within 14 days shows on the dashboard; a passed deadline shows red. | RULE-109, WF-002 notifications |
+| RULE-109 | A deadline within 14 days shows on the dashboard. A deadline that passes with no decision shows red and is listed for Supervisors. (TDMS uses the visit date and a daily digest; TLMI v1 has no visit plans, and the digest comes in Phase 4.) | RULE-109, WF-002 notifications |
 
 ## Status flow (TDMS WF-002)
 

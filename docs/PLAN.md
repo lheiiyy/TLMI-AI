@@ -263,7 +263,7 @@ The G0 decisions were closed on 19 Oct 2026 by following the TDMS rules. The lar
 | Apps Script time limits | Timeouts on reports and import | Paged reads, a summary table, a chunked import |
 | Limited desktop time for `clasp` deploys | Slow releases | Batch deploys into one desktop session; reviews on tablet |
 
-**Decisions ****(gate G0).**
+**Decisions (gate G0).**
 
 Closed by following TDMS (19 Oct 2026):
 
