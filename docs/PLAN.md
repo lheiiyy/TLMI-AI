@@ -42,7 +42,7 @@ TLMI-AI (Team Leader Monitoring) is a web app that replaces the "[sys] Team lead
 
 ## 2. Current tools and lessons
 
-The program runs on one spreadsheet, [[sys] Team leader Monitoring](https://docs.google.com/spreadsheets/d/137AyWSnYOvtizgjNHGVuZqvFBpHCjxcvzrp37ujBNvU/edit), with 16 tabs. The tabs below were read on 19 Oct 2026. The TDMS rules for this program are in [WORKFLOWS.md, WF-002](https://github.com/lheiiyy/TDMS/blob/main/docs/WORKFLOWS.md) and [BUSINESS-RULES.md, RULE-100 to 109](https://github.com/lheiiyy/TDMS/blob/main/docs/BUSINESS-RULES.md).
+The program runs on one spreadsheet, "[sys] Team leader Monitoring" (link omitted: sheet IDs are not committed), with 16 tabs. The tabs below were read on 19 Oct 2026. The TDMS rules for this program are in [WORKFLOWS.md, WF-002](https://github.com/lheiiyy/TDMS/blob/main/docs/WORKFLOWS.md) and [BUSINESS-RULES.md, RULE-100 to 109](https://github.com/lheiiyy/TDMS/blob/main/docs/BUSINESS-RULES.md).
 
 | Tab | What it tracks | Main issue | What to keep |
 | --- | --- | --- | --- |
