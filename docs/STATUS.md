@@ -1,21 +1,25 @@
 # STATUS
 
-**Phase:** 0, setup and decisions (gate G0: rules signed off).
+**Phase:** 1, core data, sign-in and audit log (gate G1). Phase 0 gate G0 (rules signed off) is passed.
 **Last updated:** 2026-10-19
 
 ## Done
 
 - Project plan approved ([docs/PLAN.md](PLAN.md)).
 - G0 decisions adopted from TDMS on 2026-10-19 ([docs/DECISIONS.md](DECISIONS.md)).
-- Repository scaffold: README, CLAUDE.md, docs and folder layout (pull request "docs: scaffold TLMI-AI repository", awaiting Leo).
-- Audit fixes for PR #1.
+- Repository scaffold merged (pull request #1).
+- Phase 1 design written: [specs/2026-10-19-phase-1-core-data-design.md](../specs/2026-10-19-phase-1-core-data-design.md) (draft, awaiting Leo's review).
+- Build pipeline added to [CLAUDE.md](../CLAUDE.md).
 
 ## Next
 
-- Phase 1 spec in `specs/`: master data, sign-in, audit log, and the legacy import mapping.
+- Leo reviews and merges the Phase 1 spec pull request. Merging approves the spec.
+- Build plan for Phase 1 (`superpowers:writing-plans`), approved by Leo before any app code.
+- Answers needed from Leo: the Angel's Pizza brand code, the source of the officer list, who may edit stores, and when Admin delete is built (spec §12).
 - Settle the extension limit (CFG-047) and the probation start in TDMS before gate G2.
 
 ## Blockers and open items
 
-- Open items are listed in [docs/DECISIONS.md](DECISIONS.md).
-- No app code exists yet; none is to be written until the Phase 1 spec is approved.
+- Open items are listed in [docs/DECISIONS.md](DECISIONS.md) and in spec §12.
+- No app code exists yet; none is to be written until the spec is merged and the build plan is approved.
+- Interim exception X-1: Phase 1 sign-in is a name list plus an Admin PIN. Password sign-in is the first task of Phase 2, before any Team Leader record is loaded.
