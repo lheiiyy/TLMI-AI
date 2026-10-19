@@ -7,7 +7,7 @@
 
 - Project plan approved ([docs/PLAN.md](PLAN.md)).
 - G0 decisions adopted from TDMS on 2026-10-19 ([docs/DECISIONS.md](DECISIONS.md)).
-- Repository scaffold: README, CLAUDE.md, docs and folder layout (pull request "docs: scaffold TLMI-AI repository", awaiting Leo).
+- Scaffold merged (PR #1).
 - Audit fixes for PR #1.
 
 ## Next
