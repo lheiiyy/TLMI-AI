@@ -28,7 +28,8 @@
 ## Blockers and open items
 
 - Open items are listed in [docs/DECISIONS.md](DECISIONS.md) and in spec §12.
-- App code so far: server only (API entry, sign-in, master data, settings, users, audit, seed, import review); no UI yet. 206 unit tests pass.
+- App code so far: server only (API entry, sign-in, master data, settings, users, audit, seed, import review); no UI yet. 220 unit tests pass.
 - Branch `docs/scaffold` and the other merged branches could not be deleted from the Code session (the proxy refuses branch deletion); Leo can delete them on GitHub.
+- For Task 14 (`docs/SETUP.md`), from the review of PR #6: `needs_review` is a column an officer may edit and clears after re-checking a row; Admin tells officers before a re-run and nobody edits the review sheet during it.
 - Interim exception X-1: Phase 1 sign-in is a name list plus an Admin PIN. Password sign-in is the first task of Phase 2, before any Team Leader record is loaded.
 - `clasp` login, the DEV and TEST script projects and the Script Properties are set up by Leo once (see the setup guide that task 14 produces).
