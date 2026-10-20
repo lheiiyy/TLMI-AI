@@ -1,5 +1,5 @@
 // Name matching, date and grade parsing, uniform-cell splitting and status mapping for the legacy import review
-// (spec section 10, docs: migration/LEGACY-DATA-PROFILE.md). Pure functions: no I/O, no Google services, no new Date.
+// (spec section 10, docs: migration/LEGACY-DATA-PROFILE.md). Pure functions: no I/O, no Google services, no clock.
 // Nothing here guesses: a value is mapped only when it matches exactly one master record; anything else is a candidate.
 const ImportRules = (function () {
   const MONTHS = { JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6, JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12 };
