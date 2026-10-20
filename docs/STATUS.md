@@ -13,7 +13,7 @@
 - Build pipeline in [CLAUDE.md](../CLAUDE.md); working agreement in [docs/COLLABORATION.md](COLLABORATION.md) (Code builds, the reviewer checks).
 - Legacy data profile: [migration/LEGACY-DATA-PROFILE.md](../migration/LEGACY-DATA-PROFILE.md).
 - Spec, plan and working-agreement pull request merged (#3, merge commit f1e8902).
-- Phase 1 pull request A (tasks 1 to 5: test harness, platform adapters, validator, schema, repository, audit service) built on branch `feat/phase1-a-foundation`, in review.
+- Phase 1 pull request A (tasks 1 to 5: test harness, platform adapters, validator, schema, repository, audit service) built on branch `feat/phase1-a-foundation`, in review (round 2 after the first review).
 - Spreadsheets created by the reviewer in one Drive folder, "TLMI-AI": a dated copy of the legacy sheet with a `SEED_OFFICERS` tab, `TLMI_DB_DEV`, `TLMI_DB_TEST`, `TLMI_IMPORT_REVIEW_TEST`. IDs are not in the repo; Leo puts them in Script Properties.
 
 ## Next
@@ -26,7 +26,7 @@
 ## Blockers and open items
 
 - Open items are listed in [docs/DECISIONS.md](DECISIONS.md) and in spec §12.
-- App code so far: server foundation only (no API entry, no UI). 68 unit tests pass.
+- App code so far: server foundation only (no API entry, no UI). 77 unit tests pass.
 - Branch `docs/scaffold` and the other merged branches could not be deleted from the Code session (the proxy refuses branch deletion); Leo can delete them on GitHub.
 - Interim exception X-1: Phase 1 sign-in is a name list plus an Admin PIN. Password sign-in is the first task of Phase 2, before any Team Leader record is loaded.
 - `clasp` login, the DEV and TEST script projects and the Script Properties are set up by Leo once (see the setup guide that task 14 produces).
