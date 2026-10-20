@@ -191,9 +191,14 @@ const Repository = (function () {
         const next = v[f] === null ? emptyValue(def.fields[f].type) : v[f];
         if (!sameValue(before[f], next)) changed.push(f);
       });
+      // opts.isActive deactivates or reactivates; it is the only way to change is_active.
+      if (typeof opts.isActive === 'boolean' && before.is_active !== opts.isActive) changed.push('is_active');
       if (changed.length === 0) return { before: before, after: clone(row), changed: [] };
       checkUnique(state, v, id, true);
-      changed.forEach((f) => { row[f] = v[f] === null ? emptyValue(def.fields[f].type) : v[f]; });
+      changed.forEach((f) => {
+        if (f === 'is_active') row.is_active = opts.isActive;
+        else row[f] = v[f] === null ? emptyValue(def.fields[f].type) : v[f];
+      });
       row.row_version = before.row_version + 1;
       row.updated_at = (opts.actor && opts.actor.now) || Clock.iso();
       row.updated_by = (opts.actor && opts.actor.userId) || '';
