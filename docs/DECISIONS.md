@@ -30,6 +30,8 @@ Gate G0 decisions were closed on **2026-10-19** by adopting the TDMS answer. TLM
 | --- | --- | --- | --- |
 | L-1 | Apps Script has no transaction across ranges, so a failed write part-way can leave some tables written. | The script lock is held for the whole commit. Tables are written in a fixed order: `id_counters`, data tables, `record_history`, `audit_log` last. A failure can leave a saved change without its audit row, never an audit row for an unsaved change. An edited row is one write each; appends to one table are one write. | Spec §8; `Repository.commit` |
 
+Limit L-2 (review sheet): the review tabs are written one after another, each as a single write that never clears the tab first. A failure part-way can leave some tabs new and some old, but every tab is either fully old or fully new and no officer decision is lost; the next run repairs the rest because the row keys are stable. `summary` is written last. An officer who edits a decision during the few seconds of a run may have the edit overwritten, so Admin tells officers before a re-run (to go in `docs/SETUP.md`, Task 14).
+
 ## Open for Phase 2 (raised in reviews)
 
 | Item | Why | Planned answer |

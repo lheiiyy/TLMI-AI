@@ -290,16 +290,27 @@ const Repository = (function () {
     },
 
     // Replaces a tab of the review sheet: header row then rows, all written as text. Creates the tab if needed.
+    // The whole tab is one setValues over the larger of the old and the new extent (old cells beyond the new rows
+    // are written as empty text), and nothing is cleared first. A failed write therefore leaves the old tab as it was,
+    // and no decision on it is lost.
     writeReview(spreadsheetId, tabName, header, rows) {
       let ss;
       try { ss = SpreadsheetApp.openById(spreadsheetId); } catch (e) { throw new AppError('SERVER', 'The review spreadsheet could not be opened.'); }
       const sheet = ss.getSheetByName(tabName) || ss.insertSheet(tabName);
-      if (sheet.getLastRow() > 0) sheet.getDataRange().clearContent();
-      const all = [header].concat(rows).map((r) => r.map((c) => (c === null || c === undefined ? '' : String(c))));
-      if (all.length > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), all.length - sheet.getMaxRows());
-      const range = sheet.getRange(1, 1, all.length, header.length);
+      const body = [header].concat(rows).map((r) => r.map((c) => (c === null || c === undefined ? '' : String(c))));
+      const totalRows = Math.max(sheet.getLastRow(), body.length);
+      const totalCols = Math.max(sheet.getLastColumn(), header.length);
+      const grid = [];
+      for (let i = 0; i < totalRows; i++) {
+        const row = i < body.length ? body[i].slice() : [];
+        while (row.length < totalCols) row.push('');
+        grid.push(row);
+      }
+      if (totalRows > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), totalRows - sheet.getMaxRows());
+      if (totalCols > sheet.getMaxColumns()) sheet.insertColumnsAfter(sheet.getMaxColumns(), totalCols - sheet.getMaxColumns());
+      const range = sheet.getRange(1, 1, totalRows, totalCols);
       range.setNumberFormat('@');
-      range.setValues(all);
+      range.setValues(grid);
       sheet.setFrozenRows(1);
     },
   };
