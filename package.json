@@ -1,0 +1,15 @@
+{
+  "name": "tlmi-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Team Leader Monitoring (Apps Script web app)",
+  "scripts": {
+    "test": "node --test \"tests/unit/**/*.test.js\" \"tests/helpers/**/*.test.js\"",
+    "build": "node tools/build.js",
+    "dev": "node tools/dev-server.js",
+    "e2e": "playwright test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

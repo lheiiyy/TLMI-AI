@@ -1,1 +1,5 @@
 .clasprc.json
+node_modules/
+dist/
+.clasp*.json
+.env
