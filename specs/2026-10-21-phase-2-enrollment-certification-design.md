@@ -64,7 +64,7 @@ Each pull request starts from an updated `main` after the previous one is merged
 ### 4.2 Failed sign-ins
 
 1. The pause (CFG-002 failures, then CFG-003 minutes) is counted **per user**, in the user record (`failed_attempts`, `cooldown_until`), as in TDMS ENT-024. It replaces the single Admin PIN counter of Phase 1.
-2. An unknown or inactive employee ID gets the same generic `AUTH_FAILED` after the same amount of hashing work as a known one, so that response time does not tell which IDs exist. It takes no lock and writes no row.
+2. An unknown or inactive employee ID gets the same generic `AUTH_FAILED` after the same amount of **hashing work** as a known one. It takes no lock and writes no row. **Accepted limit:** whether an employee number exists can still be learned from timing (a known user's failure takes the lock and writes a row) and from the pause message (`AUTH_LOCKED` exists only for known users). This is accepted because the web app is not open to the anonymous public, employee numbers are not secret, and the password stays the control; a real user needs to see the wait time. No padding delays are added.
 3. A known user whose pause has not ended gets `AUTH_LOCKED` with `retry_after`; the pause is checked before any hash is computed.
 4. Only a failure of a known user takes the script lock (to update the counter). This closes the Phase 1 open item "anonymous sign-in calls take the script lock" (DECISIONS, Open for Phase 2).
 5. `AUTH.SIGNIN.FAILED` and `AUTH.SIGNIN.LOCKED` audit rows are capped at 50 per user per day; failures beyond the cap are still counted but not written. The cap counter lives in `CacheService`; an evicted counter only lets a few more rows through.
@@ -94,7 +94,7 @@ Each pull request starts from an updated `main` after the previous one is merged
 Editor functions (each starts with `EditorGuard.check()`, limit L-3):
 
 - `initFirstAdmin()` (changed): on an empty database it reads the temporary Script Properties `FIRST_ADMIN_NAME`, `FIRST_ADMIN_EMPLOYEE_NO` and `FIRST_ADMIN_PASSWORD`, creates the first Admin with that number and a hashed temporary password (`must_change_password` set), and removes the three properties. The refusals of Phase 1 stay (an active Admin exists; the name exists), plus: the number exists, the password fails FX-002.
-- `initAdminPassword()` (new): for a database that already has its Admin from Phase 1. It reads `ADMIN_EMPLOYEE_NO` and `ADMIN_TEMP_PASSWORD`, refuses unless exactly one active Admin exists and the number is free or already that Admin's, sets the number and the hashed temporary password with `must_change_password`, and removes both properties. Audit `USER.PASSWORD_RESET` with detail `{source: 'editor'}`.
+- `initAdminPassword()` (new): for a database that already has its Admin, and the **recovery path for a locked-out or forgotten Admin**. It reads `ADMIN_EMPLOYEE_NO` and `ADMIN_TEMP_PASSWORD` and picks the Admin: the active Admin who has that number; or, when no user has the number and exactly one active Admin exists, that Admin (the number is set on it). It refuses when the number belongs to a non-Admin, or when no Admin has it and there is not exactly one active Admin. It sets the hashed temporary password with `must_change_password`, clears `failed_attempts` and `cooldown_until`, raises the session epoch, and removes both properties. Audit `USER.PASSWORD_RESET` with detail `{source: 'editor'}`.
 - `initAdminPin()` is removed. `initAdminPassword()` and `initFirstAdmin()` also delete `ADMIN_PIN_HASH`, `ADMIN_PIN_SALT` and `ADMIN_PIN_FAILS` when they are present. `checkConfig()` no longer lists them.
 
 Order on an existing TEST or DEV database (setup guide): deploy part 2A, run `initAdminPassword`, sign in, change the password, then give every officer an HR number and a temporary password from the Users screen, and hand each password over in person.
@@ -122,7 +122,7 @@ New tables follow DATA-MODEL and TDMS DATA-MODEL §8. IDs with a year take the y
 | `status_history` | `HIS-000001` | APP | is the history | `entity`, `entity_id`, `from_status`, `to_status`, `effective_date`, `remark`, `request_id`; stamp columns `at`, `user_id`. It shares the `HIS` counter with `record_history`, so a history ID is unique across both |
 | `import_rows` | `IMR-000001` | MUT | A | `import_id`, `source_tab`, `source_row`, `row_hash`, `raw` (the source row as JSON text), `result` (`READY`, `NOT_READY`, `SKIPPED`, `COMMITTED`, `ALREADY_COMMITTED`), `issues`, `skip_reason`, `created_record_type`, `created_record_id`, `legacy_ref`. A committed row is never changed again |
 
-Changes to Phase 1 tables: `users` (§4.4); `import_batches.kind` gains `LEGACY_TL` and `status` gains `Validated`, `Committing`, `Committed`. `appointment_letter_status` is added to `tl_enrollments` in Phase 3, with the uniforms.
+Changes to Phase 1 tables: `users` (§4.4); `import_batches.kind` gains `LEGACY_TL` and `status` gains `Validated`, `Committing`, `Committed`, `Superseded` (an earlier validated batch, once a newer one exists, §10.1). `appointment_letter_status` is added to `tl_enrollments` in Phase 3, with the uniforms.
 
 `status` values (TDMS WF-002): `Entry`, `Probationary`, `Certification check`, `Certified`, `Extended`, `Failed`, `Quit`, `Promoted`. **Open** states: Entry, Probationary, Certification check, Extended. Certified is closed until Promoted.
 
@@ -174,7 +174,9 @@ Lists are cached (CLAUDE.md): `tl.list` keeps its joined base rows in `CacheServ
 ### 7.2 Entry grades (RULE-101)
 
 - The required entry components are the active `entry` components with `required` = true (five by default, D064). A grade is in force when no other row supersedes it (TDMS D072).
+- `assessed_on` of an entry grade is not after today and not before the entry date (as in §7.4).
 - The entry average shown on screen is the mean of the grades in force for the required components, rounded to 2 decimals. It is computed on read, never stored or typed.
+- Legacy records follow the normal rules from the import onwards: P2-11 exempts only the imported values. An imported open record that lacks entry grades gets them recorded (backdated within the bounds above) before its first certification check.
 - **X-2:** when the call saves the last missing required grade and the status is Entry, the status becomes Probationary in the same transaction.
 
 ### 7.3 Final grade (RULE-102)
@@ -184,18 +186,18 @@ final = (w_checklist x checklist + w_exam x exam + w_feedback x feedback) / 100,
 ### 7.4 Certification check
 
 - Allowed from Probationary, Certification check and Extended. All required entry grades must be in force (`BLOCKED_BY_RULE` RULE-101).
-- `checklist` and `exam` are required; at least one of `kitchen_feedback` and `manager_feedback` (`VALIDATION`). `assessed_on` is not after today and not before the entry date. `officer_ids` holds 1 to 5 active users with a Team Leader role (Admin included, P2-6).
+- `checklist` and `exam` are required; at least one of `kitchen_feedback` and `manager_feedback` (`VALIDATION`). `assessed_on` is not after today and not before the entry date. `officer_ids` holds 1 to 5 active users whose role may certify (O, S, M, Sr, A; P2-6).
 - `course_program` (P2-13) is required on the first attempt and optional on later ones: it is recorded once per enrollment (`retake_no` of the attempt that recorded it), and a later value supersedes it with `correction_reason`. It is not part of the final grade.
 - From Probationary or Extended the call is a **new attempt** (`retake_no` = previous + 1): it writes the score rows, one `tl_certifying_officers` row per officer, the computed `final_grade`, and moves the status to Certification check.
 - From Certification check the call **corrects the current attempt**: `correction_reason` is required, every changed score is a new row that supersedes the old one, the final is recomputed, the officers stay as recorded, and the status does not change.
 
 ### 7.5 Certify
 
-From Certification check, when the latest attempt's final is at or above the pass mark and a TL course program grade is in force (`BLOCKED_BY_RULE` RULE-102 otherwise). The course program grade must be at or above the course pass mark TLMI-001 (90, §12 question 5), checked with the setting in force on the check date. Sets Certified, `certified_on` = the attempt's `assessed_on`, and stamps `pass_mark_used` and `weights_version` (D008). No approval step (D067).
+From Certification check, when the latest attempt's final is at or above the pass mark and a TL course program grade is in force (`BLOCKED_BY_RULE` RULE-102 otherwise). The course program grade must be at or above the course pass mark TLMI-001 (90, §12 question 5), checked with the setting in force on the check date. Safety net: when no TLMI-001 version is in force (a database seeded before this change, until the seed is run again), the grade only has to be recorded. Sets Certified, `certified_on` = the attempt's `assessed_on`, and stamps `pass_mark_used` and `weights_version` (D008). No approval step (D067).
 
 ### 7.6 Extend (RULE-104)
 
-From Certification check, when the latest final is below the pass mark. CFG-047 must be set (`CONFIG_MISSING`), and the number of extensions so far must be below it (`BLOCKED_BY_RULE` RULE-104). Writes `tl_extensions` with the next `extension_no`, `old_deadline`, `new_deadline` = old deadline + CFG-042 days, and the reason; sets the new deadline and the status Extended. The next certification check returns the record to Certification check.
+From Certification check, when the latest final is below the pass mark **or** the TL course program grade in force is below TLMI-001 (**interim X-4**, decided by the Reviewer on 2026-10-21 under Leo's standing instruction: a Team Leader whose final passes but whose course grade does not would otherwise have no way forward except Fail, Quit or a Supervisor's return to probation; the extension gives time to retake the course, and the new course grade is recorded at the next check). The extension counts against CFG-047 either way. CFG-047 must be set (`CONFIG_MISSING`), and the number of extensions so far must be below it (`BLOCKED_BY_RULE` RULE-104). Writes `tl_extensions` with the next `extension_no`, `old_deadline`, `new_deadline` = old deadline + CFG-042 days, and the reason; sets the new deadline and the status Extended. The next certification check returns the record to Certification check.
 
 ### 7.7 Fail (`tl.close`)
 
@@ -223,7 +225,7 @@ A record is overdue when it is in an open state and its deadline is before today
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Entry | yes (may move to Probationary) | no (RULE-101) | no | no | no | yes | no | no |
 | Probationary | yes | yes (new attempt) | no | no | no | yes | no | no |
-| Certification check | yes (correction) | yes (correction) | if final >= pass | if final < pass | yes | yes | yes (S M Sr) | no |
+| Certification check | yes (correction) | yes (correction) | if final >= pass and course >= TLMI-001 | if final < pass or course < TLMI-001 (X-4) | yes | yes | yes (S M Sr) | no |
 | Extended | yes | yes (new attempt) | no | no | yes | yes | yes (S M Sr) | no |
 | Certified | no | no | no | no | no | no | no | yes (S M Sr) |
 | Failed, Quit, Promoted | no | no | no | no | no | no | no | no |
@@ -257,7 +259,7 @@ The import reads MASTER_LOG of the legacy copy (`LEGACY_COPY_ID`) and the four d
 3. **`import.rows.skip {id, row_version, skip_reason}`** marks a row `SKIPPED` with a reason. A skip is carried to the next validation by `legacy_ref`.
 4. **`import.commit {import_id, row_version, backup_date}`** commits the `READY` rows in chunks of 25 rows per transaction, and sets the batch `Committed` when none is left. `backup_date` must be today (P2-10). A commit stopped part way (time limit, `BUSY`) is continued by calling it again; committed rows are not repeated.
 
-Validation is run again after the officers change decisions in the review sheet. A new validation supersedes the earlier batch; only the latest validated batch can be committed.
+Validation is run again after the officers change decisions in the review sheet. A new validation sets the earlier `Validated` batch to `Superseded`; only the latest validated batch can be committed, and the screen and the reconciliation show only it. A batch that is `Committing` or `Committed` is never superseded: validating again reports its committed rows as `ALREADY_COMMITTED`.
 
 ### 10.2 Review sheet changes (from the Phase 1 import review)
 
@@ -343,4 +345,4 @@ It never guesses a value that has no officer decision, never merges two persons 
 
 5. The passing grade of the TL course program is **90**. It is seeded as TLMI-001; Admin can change it on the Settings screen (a new version, as for every setting).
 
-**Decided in this design (tell the Reviewer if you disagree):** P2-13 takes your answer 1 as a recorded requirement outside the final grade formula, with the pass mark TLMI-001 = 90 (answer 5); P2-2 (probation starts with the last entry grade), P2-3 (return to probation only from Certification check and Extended), P2-4 (one feedback form counts alone), P2-5 (rounding), P2-10 (backup date at commit), P2-12 (CEBU TL tab is a view of MASTER_LOG); no e-mail reset (§4.3); uniforms and appointment letters are imported in Phase 3.
+**Decided in this design (tell the Reviewer if you disagree):** X-4 (extend when the course grade is below TLMI-001 even if the final passes, §7.6); P2-13 takes your answer 1 as a recorded requirement outside the final grade formula, with the pass mark TLMI-001 = 90 (answer 5); P2-2 (probation starts with the last entry grade), P2-3 (return to probation only from Certification check and Extended), P2-4 (one feedback form counts alone), P2-5 (rounding), P2-10 (backup date at commit), P2-12 (CEBU TL tab is a view of MASTER_LOG); no e-mail reset (§4.3); uniforms and appointment letters are imported in Phase 3.
