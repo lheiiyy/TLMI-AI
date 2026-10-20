@@ -1,6 +1,6 @@
 # Autonomous development: audit and design
 
-**Status:** proposal, written by the Reviewer on 2026-10-21. Nothing described here as "proposed" is switched on. Each rollout phase starts only after Leo approves it (section 10).
+**Status:** written by the Reviewer on 2026-10-21. Leo answered B1 to B4 the same day (section 2.5). Phase 1 is being set up; nothing else described here as "proposed" is switched on.
 
 **Question asked by Leo (2026-10-21):** can Cowork (the Reviewer) and Claude Code (Code) hand work to each other through GitHub without Leo relaying messages, with a reconciliation check about every 5 minutes, while Leo keeps the business, security and LIVE decisions?
 
@@ -16,7 +16,7 @@
 | 4 | Should the 5-minute reconciliation be a GitHub Actions schedule or a persistent worker? | Neither. An Actions schedule every 5 minutes bills at least 8,640 minutes a month against 2,000 free minutes, is best-effort, and needs a stored token to wake an agent. A persistent worker needs a machine and stored credentials. Use event wakes for speed and the existing hourly cloud task for repair. | V14, V15, section 6 |
 | 5 | How are duplicates, conflicts, repeated failures and endless retries prevented? | One baton label per item (only its holder acts), a lease label with a claim comment, the head commit as the idempotency key, a re-read before every post, attempt caps, a "no change, no hand-off" rule, a kill switch, and the platform's hourly caps. | section 5 |
 | 6 | Credentials, permissions, branch protection, tests, security escalation? | The design adds no new secret. Both agents act as Leo's GitHub user through Anthropic's proxy, so a label or comment can never prove that Leo acted; Leo's merge click is the gate for every halt. `main` has no protection, and a private repository on GitHub Free cannot have it, so "never push to `main`" rests on instructions and platform guards until Leo decides (B1). Tests gate approval by rule; a planned CI guard step and the `needs:leo` label enforce escalation. | V1, V13, section 7 |
-| 7 | Which operations run on their own and which halt? | Section 8 lists both. In short: building, testing, reviewing and docs run on their own; merging, LIVE, `clasp`, secrets, access, roles, deletion, workflow and `CLAUDE.md` changes halt for Leo. | section 8 |
+| 7 | Which operations run on their own and which halt? | Section 8 lists both. In short: building, testing, reviewing, docs and (by Leo's B4) merging approved, green pull requests run on their own; LIVE, `clasp`, secrets, access, roles, deletion, and the merge of any pull request that touches workflows, `CLAUDE.md` or the access settings halt for Leo. | section 8 |
 
 ## 2. Audit of the current state
 
@@ -62,6 +62,7 @@ Checked from the Reviewer's session on 2026-10-20 between 19:00 and 20:40 UTC (2
 | N8 | Cause of the failed run 39481209264. | Pilot task. |
 | N9 | Whether the repository has any Actions secrets. | Leo: Settings, Secrets and variables, Actions (expected: none). |
 | N11 | Whether the Claude GitHub App is installed on the account (the installations list cannot be read from this session). | Leo: GitHub, Settings, Applications. Not needed by the recommended design. |
+| N12 | Whether the platform lets a fired cloud Code run merge a pull request (B4). A fired prompt is not consent (V17), and Code's merge was refused once before (V13). | Pilot P-2, step 6. If refused, Leo clicks Merge. |
 
 ### 2.3 NOT IMPLEMENTED
 
@@ -82,6 +83,15 @@ Checked from the Reviewer's session on 2026-10-20 between 19:00 and 20:40 UTC (2
 | B3 | Connectors are removed only in the web page of the task (V18). | Leo removes all connectors except Claude Code Remote from the Reviewer's task now, and from the Code task when it is created. |
 | B4 | Merge path. A fired run carries no word from Leo (V17), so "Leo names the pull request in the Code session" cannot work unattended. | Leo merges by clicking Merge on GitHub after `VERDICT: APPROVED` and green tests (one tap from the GitHub app). `CLAUDE.md` and `docs/COLLABORATION.md` are updated to say so; Leo or Code edits `CLAUDE.md` (the Reviewer cannot). |
 
+### 2.5 Leo's answers (2026-10-21, 05:22 Manila time)
+
+| ID | Answer | What follows |
+| --- | --- | --- |
+| B1 | Make the repository public. | **On hold, escalated to Leo.** The scan before publishing (every branch, every commit, every pull request text and comment) found the ID of a real spreadsheet with staff data in an early commit; the file was corrected a minute later, but the commit stays in the history and in the pull request record. The sheet's own sharing settings make that ID enough to open it. Leo was given three options in the session: stay private (with GitHub Pro for protection), publish a new repository without the old history, or rewrite the history (not recommended). Whatever he picks, the sheet's link sharing should be restricted. The rest of the scan was clean. Until he decides, `main` stays unprotected and the `main` push alarm (section 7) is the fallback. |
+| B2 | Allowed. | The fire-only Code task is created (Phase 2). |
+| B3 | No answer yet. | The Code task is not fired until its connectors are reduced to Claude Code Remote, or Leo says to go ahead without that. |
+| B4 | Merging is part of Code's automatic work. | Code merges a pull request when the Reviewer's `VERDICT: APPROVED` names its current head, `tests` is green, it is mergeable, and it carries no `merge:leo`, `needs:leo` or `status:blocked`. A pull request whose diff touches `CLAUDE.md`, `.github/`, `appsscript.json`, the permission table or the `tools/` deploy scripts gets `merge:leo`, and Leo merges it. The rule is in `docs/COLLABORATION.md` (PR #9) and takes effect when `CLAUDE.md` says the same (pilot item P-1, merged by Leo). Approver and merger stay different parties. |
+
 ## 3. Recommended architecture
 
 ```mermaid
@@ -98,8 +108,9 @@ flowchart LR
   R -- "fire: item + head" --> C
   C -- "branch, commits, PR, waits for CI" --> P
   C -- "sets agent:reviewer, fire" --> R
-  R -- "review, VERDICT, sets agent:leo" --> P
-  Leo -- "Merge, needs:leo answers, LIVE" --> P
+  R -- "review, VERDICT, sets agent:code to merge" --> P
+  C -- "merges approved, green PRs" --> P
+  Leo -- "merge:leo PRs, needs:leo answers, LIVE" --> P
   R -. "hourly: repair stuck items" .-> L
 ```
 
@@ -111,7 +122,7 @@ Principles:
 4. **Idempotent by head commit.** Each action records the head commit it covers (`Reviewed head <sha>`, `Code: built head <sha>`). An agent that finds its action already recorded for the current head does nothing.
 5. **CI inside the run.** Code waits for the `tests` result of its own push inside the same run (about 1.5 to 9 minutes, V5), so no CI event is needed.
 6. **Repair, not speed, is hourly.** The existing hourly task finds stuck items and re-fires once. Speed comes from the wakes.
-7. **People keep the gates.** Merge, LIVE, `clasp`, secrets, access and roles stay with Leo (section 8).
+7. **People keep the gates.** LIVE, `clasp`, secrets, access, roles and the merge of halt-path pull requests stay with Leo (section 8). Code merges the rest under the merge rule (B4).
 
 Wake paths:
 
@@ -121,7 +132,8 @@ Wake paths:
 | Code's pull request ready, question or blocked | Reviewer | Code fires the Reviewer task (N2) | same |
 | Review done with changes requested | Code | Reviewer fires the Code task | same |
 | CI finished on Code's push | Code (already running) | Code waits for the check in the same run | 1.5 to 9 min (V5) |
-| Approved and green | Leo | `agent:leo`; the Reviewer task's push notification; GitHub's own notification | when Leo looks |
+| Approved and green | Code, to merge | Reviewer sets `agent:code` and fires the Code task with `want: merge` | same as above |
+| Approved, green, `merge:leo` | Leo | `agent:leo`; the Reviewer task's push notification; GitHub's own notification | when Leo looks |
 | Leo comments or changes a label | the baton holder | Leo tells the live session, or the hourly task picks it up | up to 60 min |
 | Anything stuck | the baton holder | hourly task re-fires once, then escalates | up to 60 min |
 
@@ -130,9 +142,9 @@ Wake paths:
 | Party | Does | Does not |
 | --- | --- | --- |
 | **Cowork, the Reviewer (head)**: the live claude.ai session when Leo is present; the cloud task "TLMI-AI: review Claude Code's pull requests" otherwise | Plans and sets priorities; writes specs, plans and task issues; decides spec, plan, design and business-rule questions within Leo's decisions; reviews each pull request and gives the `VERDICT`; writes docs; keeps TDMS alignment across modules; product-level review; fires Code; runs the hourly repair | Write application code; merge; touch LIVE; add secrets; widen access |
-| **Code (builder)**: a fire-only cloud task (new, B2); Leo's own Claude Code session for `clasp` to DEV and TEST and for the TEST smoke test | Claims an item; investigates the repository; builds with tests first; debugs; runs the tests; waits for and fixes CI; opens and updates pull requests; posts `Code: TECHNICAL REVIEW` on the Reviewer's pull requests; updates `docs/STATUS.md`; fires the Reviewer | Decide an open rule (asks with `Code: QUESTION`); merge; push to `main`; deploy; edit workflows or `CLAUDE.md` without `needs:leo` |
+| **Code (builder)**: a fire-only cloud task (new, B2); Leo's own Claude Code session for `clasp` to DEV and TEST and for the TEST smoke test | Claims an item; investigates the repository; builds with tests first; debugs; runs the tests; waits for and fixes CI; opens and updates pull requests; posts `Code: TECHNICAL REVIEW` on the Reviewer's pull requests; merges under the merge rule (B4); updates `docs/STATUS.md`; fires the Reviewer | Decide an open rule (asks with `Code: QUESTION`); approve; merge a `merge:leo` pull request; push to `main`; deploy; edit workflows or `CLAUDE.md` without `merge:leo` |
 | **GitHub** | Holds the issues, labels, pull requests and comments; runs `tests`; notifies Leo | Wake an agent (nothing in GitHub calls the agents in this design) |
-| **Leo** | Answers B1 to B4; merges; answers every `needs:leo` item; owns LIVE and `clasp`; can pause everything | Relay messages between the agents |
+| **Leo** | Answers B1 to B4; merges `merge:leo` pull requests; answers every `needs:leo` item; owns LIVE and `clasp`; can pause everything | Relay messages between the agents |
 
 The two agents do not repeat each other's work. Code builds and proves; the Reviewer judges. The Reviewer uses the CI result for the exact head commit as its fresh test run, and runs the tests itself only when CI is missing or red for that head, or when a screen changed (to look at screenshots at 1280, 768 and 375 pixels).
 
@@ -148,7 +160,7 @@ Source: spec section(s) and plan task number(s).
 Files expected: paths.
 Done when: the tests that must exist and pass; the checks in CLAUDE.md that apply.
 Out of scope: what must not change.
-Halts: any item from docs/AUTOMATION.md section 8 that this work touches (then the issue also gets needs:leo).
+Halts: any item from docs/AUTOMATION.md section 8 that this work touches (a halt path gives the pull request merge:leo; a decision Leo must make first gives the issue needs:leo).
 ```
 
 ### 5.2 Labels
@@ -158,8 +170,9 @@ Halts: any item from docs/AUTOMATION.md section 8 that this work touches (then t
 | `status:ready` | The issue is approved for building. | Reviewer |
 | `agent:code` | Code holds the baton. | Reviewer |
 | `agent:reviewer` | The Reviewer holds the baton. | Code |
-| `agent:leo` | Leo holds the baton: merge, or a `needs:leo` answer. | Reviewer |
+| `agent:leo` | Leo holds the baton: a `merge:leo` merge, or a `needs:leo` answer. | Reviewer or Code |
 | `agent:working` | Lease: a run is working on the item now. | the running agent |
+| `merge:leo` | The diff touches a halt path; the agents may build and review it, but only Leo merges it. | Code or Reviewer |
 | `needs:leo` | A security, access, LIVE, deletion or automation-change item. Every agent stops on it until Leo removes it. | any |
 | `status:blocked` | A cap was hit or a rule is missing. A comment says why. | any |
 | `automation:paused` | Kill switch, on one issue titled "AUTOMATION PAUSED". While that issue is open, every run exits at once. | Leo (or an agent that finds an emergency) |
@@ -200,8 +213,8 @@ from: reviewer | code | hourly
 
 The existing Reviewer task keeps its hourly schedule. When it runs without a wake hint, it also:
 
-- Finds open items whose baton holder has not acted for 2 hours, or whose `agent:working` claim is older than 60 minutes; removes the stale lease and re-fires the holder once (limits in 5.4).
-- Finds items with no baton label or two baton labels, and fixes them from the comment record.
+- Finds open items whose baton holder (Code or the Reviewer, not Leo) has not acted for 2 hours, or whose `agent:working` claim is older than 60 minutes; removes the stale lease and re-fires the holder once (limits in 5.4).
+- Finds items that have a claim comment but no baton label, or two baton labels, and fixes them from the comment record. Items that never had a claim are left alone, so nothing starts before the Reviewer hands it out.
 - Reviews anything waiting for the Reviewer.
 - Posts nothing when all is in order, and ends with "No new work."
 
@@ -236,20 +249,21 @@ So no exact 5-minute loop is available, and none is needed: a hand-off reaches t
 **CI guard step (to be built by Code in Phase 3, reviewed by the Reviewer, merged by Leo).** Added to the `tests` job, so no extra job minutes:
 
 1. Fails if the diff adds a `.clasprc.json`, a Google sheet or script ID pattern, a spreadsheet or script URL, an e-mail address outside an allow list of invented test addresses, or a token pattern. Invented test-only values stay allowed where a comment says so (Phase 1 rule).
-2. Writes a "needs Leo" notice in the run summary when the diff touches `CLAUDE.md`, `.github/`, `appsscript.json` (web app access and run-as), the permission table, or `tools/` deploy scripts. It does not fail the run (a label cannot prove Leo cleared it); instead the Reviewer adds `needs:leo`, its `VERDICT` names the item for Leo, and Leo decides by merging or not.
+2. Writes a "needs Leo" notice in the run summary when the diff touches `CLAUDE.md`, `.github/`, `appsscript.json` (web app access and run-as), the permission table, or `tools/` deploy scripts. It does not fail the run (a label cannot prove Leo cleared it); instead the pull request gets `merge:leo`, the Reviewer's `VERDICT` names the item for Leo, Code does not merge it, and Leo decides by merging or not.
 3. `concurrency: { group: tests-${{ github.ref }}, cancel-in-progress: true }` and `timeout-minutes: 20`, to stop paying for superseded runs.
 
-**`main` push alarm.** A workflow on `push` to `main` that fails, and so e-mails Leo through GitHub's failed-run notice (on by default), when the pushed commit is not the merge of a pull request that carries `VERDICT: APPROVED`.
+**`main` push alarm.** A workflow on `push` to `main` that fails, and so e-mails Leo through GitHub's failed-run notice (on by default), when the pushed commit is not the merge of a pull request that carries `VERDICT: APPROVED` for its head. With Code merging (B4), this alarm is the check that every commit on `main` came through an approved pull request.
 
-**Escalation is enforced, not only written.** An item that touches a halt area gets `needs:leo` from the issue template, from the guard step, or from either agent; every run exits on that label; the Reviewer does not approve while it is present; and only Leo merges.
+**Escalation is enforced, not only written.** A decision that Leo must make first gets `needs:leo`, and every run exits on that label. A diff that touches a halt path gets `merge:leo` from the issue template, the guard step or either agent; Code's merge rule refuses it; only Leo merges it.
 
 **Kill switch.** Leo opens an issue titled "AUTOMATION PAUSED" with the label `automation:paused`, from the GitHub app. Every run checks it first. Turning the two cloud tasks off at claude.ai/code/routines is the second switch.
 
 ## 8. Autonomous or halt
 
-| Runs on its own | Halts for Leo (`needs:leo` or `agent:leo`) |
+| Runs on its own | Halts for Leo (`needs:leo`, `merge:leo` or `agent:leo`) |
 | --- | --- |
-| Creating, labelling and commenting on issues | Merging any pull request into `main` |
+| Code merging a pull request under the merge rule (B4): `VERDICT: APPROVED` for its head, `tests` green, mergeable, no `merge:leo`, `needs:leo` or `status:blocked` | Merging a pull request that touches `CLAUDE.md`, `.github/`, `appsscript.json`, the permission table or the `tools/` deploy scripts (`merge:leo`) |
+| Creating, labelling and commenting on issues | A merge the platform refuses (`Code: BLOCKED — merge refused`) |
 | Branches, commits and pushes to feature and docs branches | Pushing to `main`; force push; deleting a branch that is not merged |
 | Opening and updating pull requests | Anything on LIVE; `clasp` push (Leo's session only, DEV and TEST); Script Properties |
 | Running unit and browser tests; fixing a red CI run within the limits | Adding or changing a secret, token or credential; installing a GitHub App |
@@ -257,7 +271,7 @@ So no exact 5-minute loop is available, and none is needed: a hand-off reaches t
 | The Reviewer's review and `VERDICT` on Code's pull requests | Widening a role, the permission table or the web app access (`appsscript.json`) |
 | The Reviewer's answers to `Code: QUESTION` on spec, plan, design and business rules within Leo's decisions | A business decision Leo has kept, or one that changes a decision he made |
 | Docs, specs and plans on branches | Deleting data or history; anything touching real staff data |
-| Re-firing a stuck item once | Changes to `CLAUDE.md`, `.github/` workflows or this automation |
+| Re-firing a stuck item once | Changes to this automation's task settings (connectors, schedule, model) |
 | | Any limit in 5.4 reached |
 
 ## 9. Recovery
@@ -270,6 +284,7 @@ So no exact 5-minute loop is available, and none is needed: a hand-off reaches t
 | CI stays red after 2 fixes in a run | Code posts `BLOCKED`, sets `status:blocked`, hands the baton to the Reviewer, who decides or escalates. |
 | Two comments for the same head | Harmless: the earlier one counts; nothing is deleted. |
 | A commit reached `main` without an approved pull request | The alarm fails; Leo decides; Code prepares a revert pull request. No force push. |
+| The platform refuses Code's merge | Code posts `Code: BLOCKED — merge refused` and hands the baton to Leo, who clicks Merge. Nobody works around the refusal. |
 | Usage limit reached | Runs are refused until the window resets; the hourly task picks the items up again. |
 | A session restarts | Nothing is lost: all state is on GitHub. |
 
@@ -279,26 +294,32 @@ So no exact 5-minute loop is available, and none is needed: a hand-off reaches t
 | --- | --- | --- | --- |
 | 0. Audit (this pull request) | This document | Leo has answered B1 to B4 | Close the pull request |
 | 1. Protocol | Labels created; the "AUTOMATION PAUSED" issue created and closed; the task prompts kept as files in `docs/automation/` so every change is reviewed in a pull request; Reviewer task prompt rewritten for wake hints, the start checks in 5.3 and the repair in 5.5; Leo removes connectors (B3); `docs/COLLABORATION.md` points to this document | The labels exist; one hourly run and one fired run both end "No new work." with nothing posted; a run while the pause issue is open ends "Paused." | Delete the labels; set the previous prompt file version back on the task |
-| 2. Pilot (needs B2) | One fire-only Code task; one real task handled end to end (section 11) | Section 11 pass criteria | Turn the Code task off; close the pilot issue |
+| 2. Pilot (B2 allowed) | One fire-only Code task; items P-0 to P-2 handled end to end (section 11) | Section 11 pass criteria | Turn the Code task off; close the pilot issues |
 | 3. Guards | Code builds the guard step, the `main` alarm and the CI settings in section 7 (with `needs:leo`) | A test pull request with an invented sheet-ID pattern fails; one touching `CLAUDE.md` shows the "needs Leo" notice; superseded runs are cancelled | Revert the workflow pull request |
 | 4. Steady state | Phase 2 pull requests E to H run through the protocol; the live session's 4-minute timer is stopped | PR E goes from issue to `VERDICT: APPROVED` with no relay by Leo; no duplicate verdicts; no push to `main` | Pause; return to Leo-started Code |
 | 5. Optional | Claude GitHub App and a pull-request label trigger, so Leo's own labels wake an agent at once | Only if Leo wants faster than hourly reaction to his own actions | Remove the trigger and the App |
 
 ## 11. Pilot
 
-**Task:** "Make the browser tests stable on docs-only commits" (failed run 39481209264, N8). It is real, small, inside Code's area (`tests/`), touches no halt area, and exercises the CI-wait and retry limits.
+Three items, in this order. Each one tests a different path.
 
-**Steps and measurements** (times from the GitHub record and the task history):
+| Item | What it is | Path it tests | Who merges |
+| --- | --- | --- | --- |
+| P-0 | The open pull requests: Code's technical review of #9 and #10, then the Reviewer's verdicts; #8 already approved | Wake both ways (N2), technical review, hand-off to Leo | Leo (until P-1, `CLAUDE.md` still asks Leo to name each merge) |
+| P-1 | Issue: bring the merge rule in `CLAUDE.md` in line with Leo's B4 and `docs/COLLABORATION.md` | Build, review, `merge:leo` | Leo (halt path) |
+| P-2 | Issue: "Make the browser tests stable on docs-only commits" (failed run 39481209264, N8) | Build, CI wait and fix limits, review, Code's own merge (N12) | Code |
+
+**Steps and measurements for P-2** (times from the GitHub record and the task history):
 
 1. t0: the Reviewer opens the issue with the template, `status:ready` and `agent:code`, and fires the Code task.
 2. t1: Code's claim comment appears (measures wake and start-up, N3).
 3. t2: Code pushes a branch and opens a pull request; t3: the CI result for that head; Code fixes red runs within the limits.
 4. t4: Code moves the baton to `agent:reviewer` and fires the Reviewer task; t5: the Reviewer's claim (proves N2).
 5. t6: the Reviewer's `VERDICT`. On changes requested, steps 2 to 6 repeat.
-6. t7: approved and green; baton `agent:leo`; Leo merges.
+6. t7: approved and green; the Reviewer moves the baton to `agent:code` with `want: merge`; t8: Code's `Code: MERGED <sha>`, or `Code: BLOCKED — merge refused` and Leo clicks Merge.
 7. Kill-switch check: Leo opens "AUTOMATION PAUSED", the Reviewer fires the Code task once, Code must end "Paused." with no change; Leo closes the issue.
 
-**Pass:** no message relayed by Leo between t0 and t6; each wake (t0 to t1, t4 to t5) under 5 minutes; exactly one claim and one result per head; labels always show one baton; no push to `main`; no secret or ID in any diff; the kill switch works; the flaky test passes 10 full runs in a row (`npx playwright test --repeat-each=10` locally) and CI is green.
+**Pass:** no message relayed by Leo between t0 and t8; each wake (t0 to t1, t4 to t5, t7 to t8) under 5 minutes; exactly one claim and one result per head; labels always show one baton; nothing reaches `main` except the merge of the approved pull request; no secret or ID in any diff; the kill switch works; the flaky test passes 10 full runs in a row (`npx playwright test --repeat-each=10` locally) and CI is green.
 
 **Abort:** any push to `main`, any secret or ID in a diff, two runs acting on the same head, or a limit in 5.4 hit twice. Then the Code task is turned off and the findings are written here.
 
