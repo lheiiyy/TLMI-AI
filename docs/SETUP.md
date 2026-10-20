@@ -47,7 +47,7 @@ In each project open Project settings, then Script Properties, and add these. Us
 
 ## 5. Setup functions, in the Apps Script editor
 
-Run them in this order, from the editor's Run menu. Each one logs names only, never a value. Open the execution log to read the result. They refuse to run when they are called from the web app, even by the owner's visitors (limit L-3 in [docs/DECISIONS.md](DECISIONS.md)); if one says it can only be run in the script editor, you are not running it from the editor.
+Run them in this order, from the editor's Run menu. Each one logs names only, never a value. Open the execution log to read the result. They refuse to run unless you run them yourself from the editor (limit L-3 in [docs/DECISIONS.md](DECISIONS.md)); if one says it can only be run in the script editor, you are not running it from the editor.
 
 1. `setup`: creates the missing tabs in `TLMI_DB`. Safe to run again.
 2. `initSecrets`: makes the password pepper.
