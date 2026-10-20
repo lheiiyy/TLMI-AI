@@ -64,10 +64,11 @@ const Hasher = {
     return s;
   },
   // Iterated HMAC-SHA256 (TDMS AD-10): key = pepper + salt, message starts as the secret.
+  // Apps Script has only the overloads (byte[], byte[]) and (String, String), so every call passes byte arrays.
   hash(secret, salt, pepper, iterations) {
     const n = iterations || Hasher.DEFAULT_ITERATIONS;
-    const key = String(pepper || '') + ':' + salt;
-    let h = Utilities.computeHmacSha256Signature(String(secret) + ':' + salt, key);
+    const key = Utilities.newBlob(String(pepper || '') + ':' + salt).getBytes();
+    let h = Utilities.computeHmacSha256Signature(Utilities.newBlob(String(secret) + ':' + salt).getBytes(), key);
     for (let i = 1; i < n; i++) h = Utilities.computeHmacSha256Signature(h, key);
     return 'hmac-sha256$' + n + '$' + Hasher._hex(h);
   },

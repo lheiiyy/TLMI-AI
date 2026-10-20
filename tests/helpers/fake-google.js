@@ -189,6 +189,11 @@ function createGoogle(opts = {}) {
   const Utilities = {
     getUuid() { return crypto.randomUUID(); },
     computeHmacSha256Signature(value, k) {
+      // Apps Script has only (byte[], byte[]) and (String, String) overloads.
+      const kinds = [value, k].map((x) => (typeof x === 'string' ? 'String' : Array.isArray(x) ? 'Byte[]' : typeof x));
+      if (kinds[0] !== kinds[1] || (kinds[0] !== 'String' && kinds[0] !== 'Byte[]')) {
+        throw new Error("The parameters (" + kinds.join(',') + ") don't match the method signature for Utilities.computeHmacSha256Signature.");
+      }
       const d = crypto.createHmac('sha256', toBuf(k)).update(toBuf(value)).digest();
       return Array.from(d).map((b) => (b > 127 ? b - 256 : b));
     },
@@ -200,7 +205,7 @@ function createGoogle(opts = {}) {
         return { yyyy: p.year, MM: p.month, dd: p.day, HH: p.hour, mm: p.minute, ss: p.second }[t];
       });
     },
-    newBlob(s) { return { getBytes: () => Array.from(Buffer.from(s, 'utf8')) }; },
+    newBlob(s) { return { getBytes: () => Array.from(Buffer.from(s, 'utf8')).map((b) => (b > 127 ? b - 256 : b)) }; },
   };
 
   const logs = [];

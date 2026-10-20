@@ -64,3 +64,13 @@ test('hmac returns signed bytes like Apps Script', () => {
   assert.equal(sig.length, 32);
   assert.ok(sig.every((b) => b >= -128 && b <= 127));
 });
+
+test('hmac refuses mixed argument types like Apps Script', () => {
+  const google = createGoogle();
+  const U = google.globals.Utilities;
+  const bytes = U.newBlob('abc').getBytes();
+  assert.throws(() => U.computeHmacSha256Signature(bytes, 'key'), /Byte\[\],String/);
+  assert.throws(() => U.computeHmacSha256Signature('abc', bytes), /String,Byte\[\]/);
+  assert.equal(U.computeHmacSha256Signature(bytes, U.newBlob('key').getBytes()).length, 32);
+  assert.equal(U.computeHmacSha256Signature('abc', 'key').length, 32);
+});

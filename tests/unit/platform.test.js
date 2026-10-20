@@ -86,3 +86,13 @@ test('AppError carries code, message and extra fields', () => {
   assert.equal(g('Errors').configMissing('CFG-047').code, 'CONFIG_MISSING');
   assert.ok(e instanceof g('AppError'));
 });
+
+test('hash passes only byte arrays to the HMAC call and matches an independent computation', () => {
+  const crypto = require('node:crypto');
+  const { g } = loadServer();
+  const H = g('Hasher');
+  const key = Buffer.from('pep:salt1', 'utf8');
+  let h = crypto.createHmac('sha256', key).update(Buffer.from('s3cret:salt1', 'utf8')).digest();
+  for (let i = 1; i < 3; i++) h = crypto.createHmac('sha256', key).update(h).digest();
+  assert.equal(H.hash('s3cret', 'salt1', 'pep', 3), 'hmac-sha256$3$' + h.toString('hex'));
+});
