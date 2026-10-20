@@ -1,0 +1,56 @@
+// Functions the owner runs by hand in the Apps Script editor (docs/SETUP.md). They are plain top-level functions
+// so that the editor lists them. They log names only: never a value, a PIN, a pepper or an ID.
+
+// Creates every missing tab of TLMI_DB. Safe to run again: it never touches a tab that exists.
+function setup() {
+  const created = Repository.ensureTables();
+  Log.info(created.length ? 'setup: created tabs: ' + created.join(', ') : 'setup: nothing to create');
+  return created;
+}
+
+// Makes the password pepper once. Returns true when it was made now.
+function initSecrets() {
+  if (Props.get('PEPPER')) {
+    Log.info('initSecrets: PEPPER already exists, left as it is');
+    return false;
+  }
+  Props.set('PEPPER', Hasher.newSalt());
+  Log.info('initSecrets: PEPPER created');
+  return true;
+}
+
+// Turns the temporary property ADMIN_PIN_NEW into a salted, iterated hash and removes the plain PIN.
+function initAdminPin() {
+  const pin = Props.get('ADMIN_PIN_NEW');
+  if (!pin) throw new Error('Set the Script Property ADMIN_PIN_NEW first.');
+  if (pin.length < 6) throw new Error('The Admin PIN must be at least 6 characters. ADMIN_PIN_NEW was left in place.');
+  const pepper = Props.get('PEPPER');
+  if (!pepper) throw new Error('Run initSecrets first (PEPPER is missing).');
+  const salt = Hasher.newSalt();
+  Props.set('ADMIN_PIN_HASH', Hasher.hash(pin, salt, pepper));
+  Props.set('ADMIN_PIN_SALT', salt);
+  Props.remove('ADMIN_PIN_NEW');
+  Props.remove('ADMIN_PIN_FAILS');
+  Log.info('initAdminPin: the Admin PIN is set; ADMIN_PIN_NEW was removed');
+}
+
+const REQUIRED_PROPERTIES = ['ENV', 'TLMI_DB_ID', 'LEGACY_COPY_ID', 'REVIEW_SHEET_ID', 'PEPPER', 'ADMIN_PIN_HASH', 'ADMIN_PIN_SALT'];
+
+// Reports which Script Properties are missing, by name only.
+function checkConfig() {
+  const missing = REQUIRED_PROPERTIES.filter((k) => !Props.get(k));
+  Log.info(missing.length ? 'checkConfig: missing ' + missing.join(', ') : 'checkConfig: ok');
+  return { ok: missing.length === 0, missing: missing };
+}
+
+// Times one hash at 1000 and at 10000 iterations, to choose Hasher.DEFAULT_ITERATIONS (plan Task 2).
+function measureHash() {
+  const time = (n) => {
+    const t0 = Clock.ms();
+    Hasher.hash('throwaway-value', Hasher.newSalt(), 'throwaway-pepper', n);
+    return Clock.ms() - t0;
+  };
+  const res = { ms1000: time(1000), ms10000: time(10000) };
+  Log.info('measureHash: 1000 iterations took ' + res.ms1000 + ' ms, 10000 iterations took ' + res.ms10000 + ' ms');
+  return res;
+}

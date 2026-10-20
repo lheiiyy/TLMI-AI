@@ -98,5 +98,6 @@ const Html = {
 
 // Server-side log only. Never returned to the browser.
 const Log = {
+  info(msg) { Logger.log(msg); },
   error(requestId, e) { Logger.log('[' + requestId + '] ' + (e && e.stack ? e.stack : String(e))); },
 };
