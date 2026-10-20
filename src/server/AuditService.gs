@@ -106,5 +106,28 @@ const AuditService = (function () {
       .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
-  return { event: event, changes: changes, logOutcome: logOutcome, list: list, history: history };
+  function methods() {
+    return {
+      'audit.list': {
+        kind: 'R',
+        params: {
+          filters: { type: 'object' },
+          cursor: { type: 'text', max: 20 },
+          page_size: { type: 'int' },
+        },
+        handler: (ctx, p) => {
+          const res = AuditService.list(p, ctx.role);
+          Repository.transact((uow) => { event(uow, ctx, { event: 'AUDIT.VIEWED', entity: 'audit_log' }); });
+          return Api.paged(res.rows, { next_cursor: res.nextCursor });
+        },
+      },
+      'history.get': {
+        kind: 'R',
+        params: { entity: { type: 'text', required: true, max: 60 }, id: { type: 'text', required: true, max: 40 } },
+        handler: (ctx, p) => history(p.entity, p.id),
+      },
+    };
+  }
+
+  return { event: event, changes: changes, logOutcome: logOutcome, list: list, history: history, methods: methods };
 })();
