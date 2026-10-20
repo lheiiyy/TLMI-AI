@@ -30,7 +30,8 @@ TLMI takes the TDMS answer wherever TDMS has one. Where TDMS is still open, this
 | P2-3 | **Interim X-3: return to probation** is allowed from Certification check and Extended only, keeps the deadline, and needs a note. | TDMS WF-002 step 9 leaves the source states open. Returning a closed record would reopen a decision. |
 | P2-4 | **One feedback form:** when only one of the two feedback scores is recorded, the feedback part of the final grade is that score. With both, feedback = 0.60 x kitchen + 0.40 x manager (CFG-045). | TDMS requires at least one feedback score (RULE-102) but leaves single-form weighting open (CD-26). Counting a missing form as 0 would fail a Team Leader for a missing paper form. |
 | P2-5 | The final grade is rounded half up to 2 decimals, and the pass check uses the rounded value (84.995 rounds to 85.00 and passes at 85). | One rule, shown the same way on screen and in reports. |
-| P2-6 | Admin does not enroll, certify, extend, fail, quit, return or promote in Phase 2. Admin reads every Team Leader record and runs the legacy import. | TDMS PERMISSIONS marks Admin as undecided ("?") for PERM-031 to 035, and AMB-02 keeps Admin promotion blocked. TDMS builds undecided permissions as deny. See §12, question 2. |
+| P2-6 | **Admin does the officer actions** (enroll, update, entry grades, certification check, certify, extend, fail, quit), reads every Team Leader record and runs the legacy import. Admin does **not** return to probation or promote. | Decided by Leo on 2026-10-21 (§12, question 2): the owner's account is Admin and the owner certifies Team Leaders. TDMS PERMISSIONS marks Admin as undecided ("?") for PERM-031 and 032; TLMI takes Leo's answer and reports it to TDMS for PH-12. Promotion by Admin stays blocked (AMB-02), and return to probation (PERM-033) stays with Supervisor and higher. |
+| P2-13 | **The TL course program grade is a certification requirement.** The legacy column "CERTFICATION GRADE" is not the checklist: it records that the Team Leader passed the 3-month TL course program, and it is part of the certification validation. It becomes its own certification component, `TL course program` (required), recorded once per enrollment at a certification check, shown with the other grades, and **not** part of the final grade formula (RULE-102 is unchanged). `tl.certify` needs a course program grade in force. | Leo, 2026-10-21 (§12, question 1). |
 | P2-7 | A person is created by `tl.enroll` (new person fields) or by the legacy import. There is no separate person create method. | TLMI has no employee module. TDMS `tl.enroll` expects an existing employee; TLMI keeps the method name and creates the person through `PersonService` in the same transaction. |
 | P2-8 | Name aliases are stored in `person_aliases` with `alias_type` = `NAME`, next to the TDMS types `HR_NO` and `TEMP`. | The legacy data has spelling variants of one person. TDMS person merge (PH-12) maps `NAME` aliases. |
 | P2-9 | The legacy import uses the TDMS import method names (`import.validate`, `import.rows.list`, `import.rows.skip`, `import.commit`) but reads its source from the legacy copy and the review sheet, not from an uploaded file. It runs in the request, in chunks, not as a job. | 276 rows fit in a request; the review sheet already holds the officers' decisions. |
@@ -129,6 +130,8 @@ Settings and lookups:
 
 - `CFG-047` (extension limit, int 1 to 10) is added to the settings definitions **without a default and without a seed**, so Admin can set it on the Settings screen. Until then `tl.extend` returns `CONFIG_MISSING` (RULE-104).
 - The CFG-002 label becomes "Wrong passwords before a pause".
+- The certification component `TL course program` (stage `certification`, `required` true) is added to the seed list, so a seed run on an existing database adds it and skips the rest (P2-13).
+- **TLMI setting `TLMI-001` (TL course program pass mark, int 1 to 100), no default, not seeded.** TDMS has no key for this TLMI requirement, so the key is TLMI-only (it cannot clash with a later TDMS `CFG-` number) and is reported to TDMS for PH-12. While unset, certification only needs the grade recorded (§7.5).
 - `tl_quit_reason` (CFG-018) stays an empty Admin list; `tl.quit` returns `CONFIG_MISSING` (key `CFG-018`) while it has no active value. `tl_close_reason` keeps `Disqualified` and takes the values Admin adds.
 
 ## 6. Part 2B: methods and permissions
@@ -142,14 +145,14 @@ O = Training Officer, S = Training Supervisor, M = Training Manager, Sr = Senior
 | `tl.history {id}` | R | O S M Sr A | — | — | TL history (ENT-064): the record's `status_history` and the `record_history` of the enrollment, its assessments, extensions and officers, newest first, cursor paged |
 | `persons.get {id}` | R | O S M Sr A | — | — | The person and their aliases and enrollments |
 | `persons.matchCandidates {last_name, first_name, middle_name?, hr_employee_no?}` | R | O S M Sr A | — | — | Possible duplicates (TDMS D006): same HR number, same normalised name, or a near name (the import review's `near` rule). Proposals only |
-| `tl.enroll` | W | O S M Sr | — | `TL.ENROLLED` | `person_id` or `person{last_name, first_name, middle_name?, suffix?, hr_employee_no?}`, `mother_location_id`, `support_location_id?`, `station_id`, `batch_code?`, `entry_date`, `remarks?`, `confirm?`. With a new person and possible duplicates, and no `confirm: true`, it writes nothing and returns `warnings[]` with `requires_confirm: true` (TDMS §6.3). A same HR number is a `VALIDATION` error, not a warning |
-| `tl.update` | W | O S M Sr | rv | `TL.UPDATED` | Field edits only (TDMS §6.4 pattern): `mother_location_id`, `support_location_id`, `station_id`, `batch_code`, `visit_report_url`, `remarks`. Not the entry date, the deadline or the status |
-| `tl.recordEntryGrade` | W | O S M Sr | rv | `TL.ENTRY_GRADE_RECORDED` | `component_id` (an active entry component), `score`, `assessed_on`, `correction_reason?`. In an open state only. A second grade for the same component supersedes the current one and needs `correction_reason` |
-| `tl.recordCertCheck` | W | O S M Sr | rv | `TL.CERT_CHECK_RECORDED` | `assessed_on`, `checklist`, `exam`, `kitchen_feedback?`, `manager_feedback?`, `officer_ids[]`, `visit_report_url?`, `correction_reason?`. §7.4 |
-| `tl.certify` | W | O S M Sr | rv | `TL.CERTIFIED` | §7.5 |
-| `tl.extend` | W | O S M Sr | rv | `TL.EXTENDED` | `reason`. §7.6 |
-| `tl.close` | W | O S M Sr | rv | `TL.FAILED` | `close_reason_id`, `remark?`. §7.7 |
-| `tl.quit` | W | O S M Sr | rv | `TL.QUIT` | `quit_date`, `quit_reason_lookup_id`, `remark?`. §7.8 |
+| `tl.enroll` | W | O S M Sr A | — | `TL.ENROLLED` | `person_id` or `person{last_name, first_name, middle_name?, suffix?, hr_employee_no?}`, `mother_location_id`, `support_location_id?`, `station_id`, `batch_code?`, `entry_date`, `remarks?`, `confirm?`. With a new person and possible duplicates, and no `confirm: true`, it writes nothing and returns `warnings[]` with `requires_confirm: true` (TDMS §6.3). A same HR number is a `VALIDATION` error, not a warning |
+| `tl.update` | W | O S M Sr A | rv | `TL.UPDATED` | Field edits only (TDMS §6.4 pattern): `mother_location_id`, `support_location_id`, `station_id`, `batch_code`, `visit_report_url`, `remarks`. Not the entry date, the deadline or the status |
+| `tl.recordEntryGrade` | W | O S M Sr A | rv | `TL.ENTRY_GRADE_RECORDED` | `component_id` (an active entry component), `score`, `assessed_on`, `correction_reason?`. In an open state only. A second grade for the same component supersedes the current one and needs `correction_reason` |
+| `tl.recordCertCheck` | W | O S M Sr A | rv | `TL.CERT_CHECK_RECORDED` | `assessed_on`, `checklist`, `exam`, `kitchen_feedback?`, `manager_feedback?`, `course_program?`, `officer_ids[]`, `visit_report_url?`, `correction_reason?`. §7.4 |
+| `tl.certify` | W | O S M Sr A | rv | `TL.CERTIFIED` | §7.5 |
+| `tl.extend` | W | O S M Sr A | rv | `TL.EXTENDED` | `reason`. §7.6 |
+| `tl.close` | W | O S M Sr A | rv | `TL.FAILED` | `close_reason_id`, `remark?`. §7.7 |
+| `tl.quit` | W | O S M Sr A | rv | `TL.QUIT` | `quit_date`, `quit_reason_lookup_id`, `remark?`. §7.8 |
 | `tl.returnToProbation` | W | S M Sr | rv | `TL.RETURNED_TO_PROBATION` | `note` (required). §7.9 |
 | `tl.promote` | W | S M Sr | rv | `TL.PROMOTED` | `promoted_on`. §7.10 |
 | `import.validate`, `import.get`, `import.rows.list`, `import.rows.skip`, `import.commit` | W, R, R, W, W | A | rv on skip and commit | `IMPORT.VALIDATED`, `IMPORT.ROW_SKIPPED`, `IMPORT.COMMITTED` | §10 |
@@ -181,13 +184,14 @@ final = (w_checklist x checklist + w_exam x exam + w_feedback x feedback) / 100,
 ### 7.4 Certification check
 
 - Allowed from Probationary, Certification check and Extended. All required entry grades must be in force (`BLOCKED_BY_RULE` RULE-101).
-- `checklist` and `exam` are required; at least one of `kitchen_feedback` and `manager_feedback` (`VALIDATION`). `assessed_on` is not after today and not before the entry date. `officer_ids` holds 1 to 5 active users with a Team Leader role.
+- `checklist` and `exam` are required; at least one of `kitchen_feedback` and `manager_feedback` (`VALIDATION`). `assessed_on` is not after today and not before the entry date. `officer_ids` holds 1 to 5 active users with a Team Leader role (Admin included, P2-6).
+- `course_program` (P2-13) is required on the first attempt and optional on later ones: it is recorded once per enrollment (`retake_no` of the attempt that recorded it), and a later value supersedes it with `correction_reason`. It is not part of the final grade.
 - From Probationary or Extended the call is a **new attempt** (`retake_no` = previous + 1): it writes the score rows, one `tl_certifying_officers` row per officer, the computed `final_grade`, and moves the status to Certification check.
 - From Certification check the call **corrects the current attempt**: `correction_reason` is required, every changed score is a new row that supersedes the old one, the final is recomputed, the officers stay as recorded, and the status does not change.
 
 ### 7.5 Certify
 
-From Certification check, when the latest attempt's final is at or above the pass mark (`BLOCKED_BY_RULE` RULE-102 otherwise). Sets Certified, `certified_on` = the attempt's `assessed_on`, and stamps `pass_mark_used` and `weights_version` (D008). No approval step (D067).
+From Certification check, when the latest attempt's final is at or above the pass mark and a TL course program grade is in force (`BLOCKED_BY_RULE` RULE-102 otherwise). The course program grade is checked against the course pass mark TLMI-001 when that setting is set (§12, question 5); while it is not set, the grade only has to be recorded. Sets Certified, `certified_on` = the attempt's `assessed_on`, and stamps `pass_mark_used` and `weights_version` (D008). No approval step (D067).
 
 ### 7.6 Extend (RULE-104)
 
@@ -232,7 +236,7 @@ All Team Leader screens are open to O S M Sr A; buttons follow `allowed_actions`
 
 - **Team Leaders** (menu): filters (status, store, station, batch, open only, overdue only), a search box, the paged list with the deadline and an Overdue tag, and an Enroll button (O S M Sr).
 - **Enroll**: search for an existing person, or type a new person's names; the store, support store, station, batch and entry date; the computed deadline is shown before saving. Possible duplicates are shown with a "This is a different person" confirmation.
-- **Team Leader record**: a header (name, status, store, station, batch, entry date, deadline with days left or Overdue, final grade and pass mark); Entry grades (each component, score, date, recorded by, Record or Correct); Certification checks (each attempt with its scores, final, officers and visit report link); Extensions; Actions for the current state; a History tab.
+- **Team Leader record**: a header (name, status, store, station, batch, entry date, deadline with days left or Overdue, final grade and pass mark); Entry grades (each component, score, date, recorded by, Record or Correct); the TL course program grade; Certification checks (each attempt with its scores, final, officers and visit report link); Extensions; Actions for the current state; a History tab.
 - Every action asks for its fields in a small form and shows the server's message on refusal ("Changed by X, reload" on `CONFLICT`).
 - Text from the server is set with `textContent` only. Client code for these screens goes in `src/client/tl.js`; `tools/assemble.js` inlines every `src/client/*.js` file, `api.js` first, then `app.js`, then the others in name order.
 
@@ -294,7 +298,7 @@ Upper case, trimmed, spaces collapsed. `LAST, FIRST MIDDLE` when the cell has a 
 | Q CERTIFICATION DEADLINE | `deadline` when present; otherwise entry date + CFG-040 |
 | K to O entry grades | `assessments` with `retake_no` 0 for the five entry components; `assessed_on` = the entry date; `assessed_by` = the ENTRY BY officer when mapped, otherwise empty |
 | P TL ENTRY AVERAGE | not stored (computed); a difference over 0.5 is a warning |
-| T CERTFICATION GRADE, U EXAM GRADE | `assessments` with `retake_no` 1 for **Checklist** (T, see §12 question 1) and **Exam** (U); `assessed_on` = column S |
+| T CERTFICATION GRADE, U EXAM GRADE | `assessments` with `retake_no` 1 for **TL course program** (T, P2-13) and **Exam** (U); `assessed_on` = column S. No legacy row gets a Checklist grade |
 | V AVERAGE | `final_grade` as a legacy value; `weights_version` = `LEGACY`; `pass_mark_used` empty |
 | R CERT BY: | `tl_certifying_officers` (`retake_no` 1), one row per mapped officer |
 | S DATE CERTIFIED | `certified_on` for Certified and Promoted; for other statuses it is only the check date of T and U |
@@ -317,7 +321,7 @@ It never guesses a value that has no officer decision, never merges two persons 
 
 ## 11. Testing and gate G2
 
-**Unit tests (Node):** every `TlRules` function with the spec's values (the deadline across month ends and leap years; the final grade with both feedback forms, one form, and the 84.995 boundary); the transition table generated for every state x action x role; each `tl.*` method's refusals (`BLOCKED_BY_RULE` with the right `rule_id`, `CONFIG_MISSING` for CFG-047 and CFG-018, `CONFLICT`); grade corrections by `supersedes_id`; status and record history rows for every write; password sign-in (unknown ID takes no lock and writes no row; the pause per user; the audit cap; `must_change_password` blocks other methods; the epoch ends other sessions; the rehash on sign-in; no password or hash in any response, audit row or log line); the import (every readiness item and issue code against invented rows in the real patterns, the name rule, idempotent re-commit, a commit stopped after one chunk and continued, reconciliation counts).
+**Unit tests (Node):** every `TlRules` function with the spec's values (the deadline across month ends and leap years; the final grade with both feedback forms, one form, and the 84.995 boundary); the transition table generated for every state x action x role (Admin allowed for the officer actions, refused for return and promote); certify without a TL course program grade, and with a course grade below TLMI-001 once it is set; each `tl.*` method's refusals (`BLOCKED_BY_RULE` with the right `rule_id`, `CONFIG_MISSING` for CFG-047 and CFG-018, `CONFLICT`); grade corrections by `supersedes_id`; status and record history rows for every write; password sign-in (unknown ID takes no lock and writes no row; the pause per user; the audit cap; `must_change_password` blocks other methods; the epoch ends other sessions; the rehash on sign-in; no password or hash in any response, audit row or log line); the import (every readiness item and issue code against invented rows in the real patterns, the name rule, idempotent re-commit, a commit stopped after one chunk and continued, reconciliation counts).
 
 **Browser tests (Playwright, localhost, mock transport):** at 1280, 768 and 375 pixels, for the five roles: sign in with an employee ID and password; the forced password change; enroll a new person (with the duplicate warning), record five entry grades and see Probationary, record a certification check, certify; extend refused until CFG-047 is set; quit; a Supervisor promotes and an officer has no Promote button and gets `FORBIDDEN` from a direct call; Admin validates, skips a row and commits the import on fake sheets. No console errors and no failed requests.
 
@@ -331,11 +335,14 @@ It never guesses a value that has no officer decision, never merges two persons 
 
 ## 12. Questions for Leo and decided details
 
-**Questions (the build does not wait for them; each is needed before the step named):**
+**Answered by Leo on 2026-10-21:**
 
-1. **Before the real import:** is the legacy column "CERTFICATION GRADE" the checklist grade? The design maps it to Checklist and "EXAM GRADE" to Exam (§10.5). In the dated copy, AVERAGE is the simple mean of the two, so either reading keeps the legacy final unchanged; only the label of the grade row depends on the answer.
-2. **Before go-live:** should Admin also do the officer actions (enroll, grades, certification check, certify, extend, fail, quit)? Your own account is Admin, and the legacy CERT BY column shows you certify Team Leaders. P2-6 keeps them closed to Admin because TDMS has not decided; opening them is a wider role, so it is your call. Promotion by Admin stays blocked either way (AMB-02).
-3. **Before the first extension:** the extension limit (CFG-047). Admin sets it on the Settings screen; no code change is needed.
-4. **Before the first quit:** the quit reasons (CFG-018). Admin adds them on the Lookups screen; no code change is needed.
+1. The legacy "CERTFICATION GRADE" is **not** the checklist. It is a requirement and part of the certification validation: it shows that the Team Leader passed the 3-month TL course program. → P2-13, §5, §7.4, §7.5, §10.5.
+2. **Yes**, Admin also does the officer actions. → P2-6, §6. Promotion and return to probation stay with Supervisor and higher.
+3. **OK**: Admin sets the extension limit (CFG-047) and the quit reasons (CFG-018) in the app before the first extension and the first quit; no code change is needed.
 
-**Decided in this design (tell the Reviewer if you disagree):** P2-2 (probation starts with the last entry grade), P2-3 (return to probation only from Certification check and Extended), P2-4 (one feedback form counts alone), P2-5 (rounding), P2-10 (backup date at commit), P2-12 (CEBU TL tab is a view of MASTER_LOG); no e-mail reset (§4.3); uniforms and appointment letters are imported in Phase 3.
+**Question (the build does not wait for it):**
+
+5. **Before the first new certification:** what is the passing grade of the TL course program? Admin sets it as TLMI-001 on the Settings screen. Until it is set, certification needs the course grade recorded but does not check its value.
+
+**Decided in this design (tell the Reviewer if you disagree):** P2-13 takes your answer 1 as a recorded requirement outside the final grade formula, with the pass mark TLMI-001 (question 5); P2-2 (probation starts with the last entry grade), P2-3 (return to probation only from Certification check and Extended), P2-4 (one feedback form counts alone), P2-5 (rounding), P2-10 (backup date at commit), P2-12 (CEBU TL tab is a view of MASTER_LOG); no e-mail reset (§4.3); uniforms and appointment letters are imported in Phase 3.
