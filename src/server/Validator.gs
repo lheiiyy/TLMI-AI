@@ -51,6 +51,8 @@ const Validator = {
         if (s.length > max) return { err: 'TOO_LONG', msg: 'At most ' + max + ' characters.' };
         return { value: s };
       }
+      case 'object':
+        return (v !== null && typeof v === 'object' && !Array.isArray(v)) ? { value: v } : { err: 'TYPE', msg: 'An object is expected.' };
       case 'int':
         return Number.isInteger(v) ? { value: v } : { err: 'TYPE', msg: 'A whole number is expected.' };
       case 'number':

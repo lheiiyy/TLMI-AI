@@ -88,3 +88,15 @@ const Hasher = {
     return diff === 0;
   },
 };
+
+const Html = {
+  page(name) {
+    return HtmlService.createHtmlOutputFromFile(name).setTitle('TLMI')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  },
+};
+
+// Server-side log only. Never returned to the browser.
+const Log = {
+  error(requestId, e) { Logger.log('[' + requestId + '] ' + (e && e.stack ? e.stack : String(e))); },
+};

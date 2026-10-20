@@ -212,7 +212,14 @@ function createGoogle(opts = {}) {
   const Logger = { log(...a) { logs.push(a.join(' ')); } };
   google.logs = logs;
 
-  google.globals = { SpreadsheetApp, LockService, CacheService, PropertiesService, Utilities, Logger, Date: FakeDate };
+  const HtmlService = {
+    createHtmlOutputFromFile(name) {
+      const out = { name, title: '', meta: {}, setTitle(t) { out.title = t; return out; }, addMetaTag(k, v) { out.meta[k] = v; return out; } };
+      return out;
+    },
+  };
+
+  google.globals = { SpreadsheetApp, LockService, CacheService, PropertiesService, Utilities, Logger, HtmlService, Date: FakeDate };
   google.pad = pad;
   return google;
 }
