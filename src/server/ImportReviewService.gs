@@ -219,6 +219,7 @@ const ImportReviewService = (function () {
       counts: {
         master_log_rows: master.length, uniform_log_rows: uniform.length, persons_proposed: personRows.length,
         possible_duplicates: dupRows.length, name_mapping: mapRows.length, bad_values: bad.length, uniform_split: uniformRows.length,
+        summary: summary.length,
       },
     };
   }

@@ -220,7 +220,15 @@ function createGoogle(opts = {}) {
     },
   };
 
-  google.globals = { SpreadsheetApp, LockService, CacheService, PropertiesService, Utilities, Logger, HtmlService, Date: FakeDate };
+  // In the script editor the effective and the active user are both the owner. A web app visitor who is not the owner has
+  // an empty or a different active user. The values are opaque placeholders, not addresses.
+  google.session = { effective: 'owner-account', active: 'owner-account' };
+  const Session = {
+    getEffectiveUser() { return { getEmail: () => google.session.effective }; },
+    getActiveUser() { return { getEmail: () => google.session.active }; },
+  };
+
+  google.globals = { SpreadsheetApp, LockService, CacheService, PropertiesService, Utilities, Logger, HtmlService, Session, Date: FakeDate };
   google.pad = pad;
   return google;
 }

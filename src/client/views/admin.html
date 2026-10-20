@@ -1,0 +1,57 @@
+<!-- Static structure of the Admin screens. app.js fills the slots; it never builds markup from data with innerHTML. -->
+
+<template id="view-manager">
+  <section class="section">
+    <header>
+      <h2 data-slot="title"></h2>
+      <span class="count" data-slot="count"></span>
+    </header>
+    <div data-slot="message" role="status"></div>
+    <div class="toolbar">
+      <input type="search" data-slot="search" aria-label="Search this list" placeholder="Search">
+      <button type="button" data-slot="add">Add</button>
+    </div>
+    <div data-slot="form"></div>
+    <div data-slot="table"></div>
+  </section>
+</template>
+
+<template id="view-settings">
+  <h1>Settings</h1>
+  <p data-slot="intro"></p>
+  <div data-slot="message" role="status"></div>
+  <div data-slot="form"></div>
+  <div data-slot="table"></div>
+  <div data-slot="history"></div>
+</template>
+
+<template id="view-seed">
+  <h1>Seed</h1>
+  <p>Loads the master lists from the copy of the legacy sheet. It skips what already exists, so it can be run again. Check first: the check writes nothing.</p>
+  <div class="toolbar">
+    <button type="button" data-slot="check">Check the seed</button>
+    <button type="button" data-slot="run" disabled>Run the seed</button>
+  </div>
+  <div data-slot="message" role="status"></div>
+  <div data-slot="result"></div>
+</template>
+
+<template id="view-import">
+  <h1>Import review</h1>
+  <p>Reads the copy of the legacy sheet and writes proposals and problems to the review sheet. It changes no Team Leader data. Tell the officers before a re-run, and nobody edits the review sheet during it.</p>
+  <div class="toolbar"><button type="button" data-slot="run">Run the import review</button></div>
+  <div data-slot="message" role="status"></div>
+  <div data-slot="result"></div>
+</template>
+
+<template id="view-audit">
+  <h1>Audit log</h1>
+  <form class="toolbar" data-slot="filters">
+    <input type="search" name="event" aria-label="Event" placeholder="Event, for example LOCATION.UPDATED">
+    <input type="search" name="entity" aria-label="Table" placeholder="Table, for example locations">
+    <button type="submit" class="secondary">Show</button>
+  </form>
+  <div data-slot="message" role="status"></div>
+  <div data-slot="table"></div>
+  <div class="toolbar"><button type="button" class="secondary" data-slot="more" hidden>Show older rows</button></div>
+</template>

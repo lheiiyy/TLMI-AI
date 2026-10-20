@@ -7,9 +7,14 @@
     "test": "node --test \"tests/unit/**/*.test.js\" \"tests/helpers/**/*.test.js\"",
     "build": "node tools/build.js",
     "dev": "node tools/dev-server.js",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "deploy:dev": "node tools/deploy.js dev",
+    "deploy:test": "node tools/deploy.js test"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
   }
 }
