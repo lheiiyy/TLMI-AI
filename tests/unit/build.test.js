@@ -66,3 +66,47 @@ test('build accepts short names and property keys', () => {
   assert.doesNotThrow(() => guardIds(src));
   fs.rmSync(src, { recursive: true, force: true });
 });
+
+test('the page is assembled without interpreting dollar patterns in the files', () => {
+  const { assemblePage } = require('../../tools/assemble');
+  const dir = tmp();
+  fs.mkdirSync(path.join(dir, 'views'));
+  fs.writeFileSync(path.join(dir, 'index.html'), '<head><!--STYLES--></head><body><!--VIEWS--><!--SCRIPTS--></body>');
+  const tricky = "a$&b $' $` $$ $1";
+  fs.writeFileSync(path.join(dir, 'styles.css'), '/* ' + tricky + ' */ body{color:red}');
+  fs.writeFileSync(path.join(dir, 'api.js'), '// ' + tricky + '\nwindow.A = 1;');
+  fs.writeFileSync(path.join(dir, 'app.js'), '// ' + tricky + '\nwindow.B = 2;');
+  fs.writeFileSync(path.join(dir, 'views', 'v.html'), '<template id="x">' + tricky + '</template>');
+  const page = assemblePage(dir, 'mock');
+  assert.equal(page.split(tricky).length - 1, 4, 'each file keeps its text exactly once');
+  assert.ok(!page.includes('<!--'));
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a closing script or style tag inside a client file stops the build', () => {
+  const { assemblePage } = require('../../tools/assemble');
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'index.html'), '<!--STYLES--><!--VIEWS--><!--SCRIPTS-->');
+  fs.writeFileSync(path.join(dir, 'styles.css'), 'body{}');
+  fs.writeFileSync(path.join(dir, 'api.js'), 'var s = "</script>";');
+  fs.writeFileSync(path.join(dir, 'app.js'), '');
+  assert.throws(() => assemblePage(dir, 'mock'), /closing script tag/);
+  fs.writeFileSync(path.join(dir, 'api.js'), '');
+  fs.writeFileSync(path.join(dir, 'styles.css'), '</style>');
+  assert.throws(() => assemblePage(dir, 'mock'), /closing style tag/);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('each ID pattern is caught on its own', () => {
+  const cases = [
+    "SpreadsheetApp.openById('1AbCdEfGhIjKlMnOpQrStUvWxYz');",
+    "x = 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz/edit';",
+    "x = 'https://script.google.com/macros/s/AKfycbxAbCdEfGhIjKlMnOpQrStUvWxYz/exec';",
+  ];
+  for (const line of cases) {
+    const src = tmp();
+    fs.writeFileSync(path.join(src, 'Bad.gs'), line + '\n');
+    assert.throws(() => guardIds(src), /Script Properties/, line);
+    fs.rmSync(src, { recursive: true, force: true });
+  }
+});
