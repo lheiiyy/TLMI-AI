@@ -37,8 +37,9 @@ The four layers and the rules in [CLAUDE.md](../CLAUDE.md) apply unchanged: the 
 | File | Layer | Job |
 | --- | --- | --- |
 | `src/client/index.html` | UI | Shell and sign-in screen (name list, PIN for Admin) |
-| `src/client/home.html` | UI | Home screen and the read-only master lists |
-| `src/client/admin.html` | UI | Admin screens: master data, settings, users, seed, import review, audit log |
+| `src/client/views/home.html` | UI | Home screen and the read-only master lists. `tools/build.js` inlines every file in `views/` into `index.html` for deployment, because an Apps Script web app serves one HTML page |
+| `src/client/views/admin.html` | UI | Admin screens: master data, settings, users, seed, import review, audit log |
+| `src/client/app.js` | UI | Screen routing and rendering; calls only `api.js` |
 | `src/client/api.js` | API client | One function per method. A `transport` setting selects `mock` (reads `tests/fixtures/`, used on localhost) or `appsscript` (`google.script.run`); `rest` is added at the TDMS move |
 | `src/server/Api.gs` | Entry | The only function the browser can call: `tlmiApi(request)`. Builds the envelope (§4), checks the session and the role, validates input, calls a service |
 | `src/server/AuthService.gs` | Service | Name list, PIN check, sessions, the permission table (§6) |
@@ -99,13 +100,13 @@ Method names are the TDMS names. "Concurrency" is `rv` (`row_version` checked un
 1. The sign-in screen calls `auth.listSignInUsers`, which returns the ID and display name of every active user, and nothing else.
 2. The user picks a name. An Admin also types the Admin PIN. Other roles need no PIN.
 3. `auth.signIn { user_id, pin? }` returns `{ token, user: { id, name, role } }`. The TDMS fields `must_change_password`, `scope`, `flags` and `settings_public` are added with password sign-in.
-4. The token is a random UUID. The session is stored in `CacheService` under that token with the user ID, role, issue time and last-seen time.
+4. The token is a random UUID from `Utilities.getUuid()` (122 random bits), which is enough for Phase 1 and is on record here so that Phase 2 reviews it together with password sign-in. The session is stored in `CacheService` under that token with the user ID, issue time and last-seen time. The role is read from the user record on every call (item 6).
 5. A session ends after **30 idle minutes** (CFG-001) or **6 hours** in total, whichever is first. `auth.me` is the keep-alive. An expired or ended session returns `SESSION_EXPIRED`.
 6. On every call the server reads the user record again (cached for up to 60 seconds). If the user has been deactivated or the role has changed, the call fails or uses the new role. The role in the session is never trusted on its own.
-7. **Admin PIN.** One PIN, set by the owner in the Apps Script editor and stored only as a salted, iterated HMAC-SHA256 hash in Script Properties (the AD-10 method). It is never in the sheet, the repo or the audit log. Minimum length is 6 characters. After **5** wrong tries the account is paused for **15 minutes** (CFG-002, CFG-003); the call returns `AUTH_LOCKED` with `retry_after`. A wrong PIN returns the generic `AUTH_FAILED`.
+7. **Admin PIN.** One PIN, set by the owner in the Apps Script editor and stored only as a salted, iterated HMAC-SHA256 hash in Script Properties (the AD-10 method). It is never in the sheet, the repo or the audit log. Minimum length is 6 characters. After **5** wrong tries the account is paused for **15 minutes** (CFG-002, CFG-003); the call returns `AUTH_LOCKED` with `retry_after`. A wrong PIN returns the generic `AUTH_FAILED`. The failure counter and the pause time are kept in Script Properties (key `ADMIN_PIN_FAILS`, JSON `{count, pausedUntil}`), read and written under the script lock, and the pause is checked before the hash is computed. They are not kept in `CacheService`, because cache entries can be evicted early and that would reset the counter. A failure counts until a correct PIN clears it or a pause ends. The hash iteration count is a code constant stored inside each hash (`hmac-sha256$<iterations>$<hex>`), so it can change later without breaking old hashes; it is chosen by a measurement on TEST (plan Task 2, TDMS spike S-02).
 8. The web app runs as the owner. Users never receive edit access to `TLMI_DB`.
 
-**Known limit, accepted by Leo:** anyone with the web app link can see the display names of the active officers and can sign in as a non-Admin role. Phase 1 therefore holds no Team Leader data, and the TEST link is shared only with named officers. The domain-only access option of TDMS AD-01 does not exist while the owner is a personal Google account (TDMS D069).
+**Known limit, accepted by Leo:** anyone with the web app link can see the display names of the active officers and can sign in as a non-Admin role. Phase 1 therefore holds no Team Leader data, and the TEST link is shared only with named officers. HR employee numbers are never returned to a session without the Admin PIN: `audit.list` removes `hr_employee_no` from every row unless the caller is an Admin (§9), and every `users.*` method is already Admin only (§5). (Decided by the reviewer on 2026-10-20 under Leo's standing instruction; it narrows access and widens nothing.) The domain-only access option of TDMS AD-01 does not exist while the owner is a personal Google account (TDMS D069).
 
 ### 6.2 Roles
 
@@ -176,7 +177,7 @@ In a patch, an absent field is unchanged and `null` clears the field where the s
 - **`audit_log`** (append-only): `id`, `at`, `user_id`, `hr_employee_no`, `event`, `entity`, `entity_id`, `result` (OK, DENIED, FAILED), `request_id`, `detail`. It records every sign-in, sign-out and failed or locked sign-in, every successful write, and every `FORBIDDEN` and `CONFLICT` result. It never stores a PIN, password or token. `VALIDATION` failures are not recorded.
 - **`record_history`** (append-only): `id`, `at`, `user_id`, `entity`, `entity_id`, `field`, `old_value`, `new_value`, `request_id`. Every master data table tracks all its fields. `status_history` is added in Phase 2 with the first status.
 - `audit_log` and `record_history` are flagged append-only in `Schema.gs`. The repository has no update or delete for them and throws if code tries. The owner can still edit the sheet by hand, so this protects against code, not against the owner.
-- `audit.list` uses cursor paging with filters on event, entity, user and date range.
+- `audit.list` uses cursor paging with filters on event, entity, user and date range. The `hr_employee_no` column is removed from every returned row unless the caller is an Admin. The `detail` text never holds `hr_employee_no`, `pin`, `password` or `token`; those keys are removed before the row is written.
 
 ## 10. Import review (dry run)
 
