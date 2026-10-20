@@ -6,7 +6,7 @@ Set by Leo on 2026-10-20. GitHub is the bridge in both directions: everything on
 
 | Who | Does | Does not |
 | --- | --- | --- |
-| **Claude Code ("Code")**, on Leo's computer | Builds on branches from the approved plan, opens pull requests, runs the tests, fixes review findings, updates `docs/STATUS.md` | Merge without the permission described under "Merge rule"; deploy LIVE; change the spec or plan without a pull request comment first |
+| **Claude Code ("Code")**, on Leo's computer | Builds on branches from the approved plan, opens pull requests, runs the tests, fixes review findings, updates `docs/STATUS.md` | Decide a spec, plan, design or business-rule question (it asks the Reviewer); merge without the permission described under "Merge rule"; deploy LIVE; change the spec or plan without a pull request comment first |
 | **Claude, claude.ai session ("Reviewer")** | Writes specs and plans for the next slice; checks each pull request (reads the diff, checks out the branch, runs `npm test` and the browser tests, compares with the spec and plan); posts the review; stands in for Leo on approvals while he is away; keeps the Google spreadsheets and the legacy data analysis | Write the application code; merge (the platform asks for Leo's explicit word) |
 | **Leo** | Decides every important security question; merges, or tells Code to merge; owns LIVE | |
 
@@ -16,7 +16,7 @@ Code also reviews the Reviewer's work: specs, plans and notes arrive as pull req
 
 Added 2026-10-21 on Leo's word ("dun kayo mag usap sa GitHub"). Code and the Reviewer post as the same GitHub account, so every comment starts with its writer: **`Code:`** or **`Reviewer:`**. A comment without one of these words at the start is treated as Leo's.
 
-1. Everything Code would otherwise ask Leo in the session about a pull request goes into a comment on that pull request instead: a question about the spec or plan, a deviation, a test it cannot make pass, a review finding it disagrees with. Start it with `Code: QUESTION` or `Code: BLOCKED — REASON — DECISION REQUIRED`. The Reviewer answers on the pull request with a decision.
+1. Everything Code would otherwise ask Leo in the session about a pull request goes into a comment on that pull request instead: a question about the spec or plan, a deviation, a test it cannot make pass, a review finding it disagrees with. Start it with `Code: QUESTION` or `Code: BLOCKED — REASON — DECISION REQUIRED`. The Reviewer answers on the pull request with `Reviewer: DECISION`, and that answer is final unless Leo overrules it.
 2. Code does not wait in the session. After `READY FOR REVIEW`, a question or a `BLOCKED`, Code checks the pull request's comments every 4 minutes (`/loop`) and goes on as soon as the Reviewer has answered.
 3. The Reviewer checks GitHub every 4 minutes from its session, and every hour from a scheduled task.
 4. Only these go to Leo in the Code session: the items under "Stop and ask Leo", and a merge that the rule below gives to Leo.
@@ -34,12 +34,20 @@ Added 2026-10-21 on Leo's word ("dun kayo mag usap sa GitHub"). Code and the Rev
 
 One rule, the same as in [CLAUDE.md](../CLAUDE.md): **a pull request is merged only after Leo has written in the Code session which pull request(s) to merge.** A general "OK" is not a merge order. Leo may name several at once, for example "OK i-merge #3 to #7 kapag may VERDICT: APPROVED at green ang tests". For a named pull request Code then merges when both conditions hold: the Reviewer's latest comment is `VERDICT: APPROVED` and the tests are green. The Reviewer approves in Leo's place on design, spec and code questions (Leo's standing instruction of 2026-10-20); that approval does not replace Leo naming the pull request. If a number is not named, Code asks Leo.
 
-**The approver and the merger are never the same party** (the platforms refuse a self-approved merge, and they are right to):
+## Decision rights (Leo, 2026-10-21: "ikaw parin ang head at si code ang builder")
 
-| Pull request written by | Reviewed and approved by | Merged by |
-| --- | --- | --- |
-| Code (feature and fix pull requests, Code's docs) | the Reviewer (`Reviewer: ... VERDICT: APPROVED`) | Code, for a pull request Leo has named |
-| the Reviewer (specs, plans, Reviewer docs) | Code (`Code: ... VERDICT: APPROVED`) | **Leo**, with the Merge button on GitHub (one click, also from the phone). Code does not merge a pull request it approved itself, and the Reviewer never merges |
+The roles are split so that two decisions never collide.
+
+- **The Reviewer is the head.** It alone decides spec, plan, design and business-rule questions (within what Leo has decided), and it alone gives `VERDICT: APPROVED`, which is the approval of every merge.
+- **Code is the builder.** It builds, tests, reports and proposes. A proposal from Code is never a decision: Code does not build an undecided rule "by default"; it posts `Code: QUESTION` and waits for the Reviewer's answer.
+- **Leo** decides the items under "Stop and ask Leo", and can overrule either side at any time.
+
+| Pull request written by | Checked by | Approved by | Merged by |
+| --- | --- | --- | --- |
+| Code (features, fixes, Code's docs) | the Reviewer | the Reviewer: `VERDICT: APPROVED` | Code, for a pull request Leo has named |
+| the Reviewer (specs, plans, Reviewer docs) | Code: `Code: TECHNICAL REVIEW` with tagged findings; the last line is `READY TO MERGE` or `NOT READY` (never `VERDICT:`) | the Reviewer: `VERDICT: APPROVED`, after Code's `READY TO MERGE` | Code, for a pull request Leo has named |
+
+So the approver and the merger are never the same party. If a platform still refuses Code's merge, Code posts `Code: BLOCKED — merge refused` and Leo clicks Merge on GitHub; nobody looks for another way around the refusal.
 
 ## Stop and ask Leo
 
