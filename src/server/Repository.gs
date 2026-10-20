@@ -263,13 +263,55 @@ const Repository = (function () {
     },
 
     // Takes the script lock (10 seconds, then BUSY), runs fn(uow), writes, releases.
-    transact(fn) {
+    // opts.dryRun runs fn against the real data and writes nothing.
+    transact(fn, opts) {
       return LockGuard.run(() => {
         const uow = new Uow(openDb());
         const result = fn(uow);
-        uow.commit();
+        if (!(opts && opts.dryRun)) uow.commit();
         return result;
       }, 10000);
+    },
+
+    // Reads a tab of another spreadsheet (the legacy copy, the review sheet) as display text, header row included.
+    // A missing tab is NOT_FOUND, or null with opts.optional. No ID or link is ever put in an error message.
+    readExternal(spreadsheetId, tabName, opts) {
+      let ss;
+      try { ss = SpreadsheetApp.openById(spreadsheetId); } catch (e) { throw new AppError('SERVER', 'A source spreadsheet could not be opened.'); }
+      const sheet = ss.getSheetByName(tabName);
+      if (!sheet) {
+        if (opts && opts.optional) return null;
+        throw Errors.notFound('Source tab not found: ' + tabName);
+      }
+      const rows = sheet.getLastRow();
+      const cols = sheet.getLastColumn();
+      if (rows < 1 || cols < 1) return [];
+      return sheet.getRange(1, 1, rows, cols).getDisplayValues();
+    },
+
+    // Replaces a tab of the review sheet: header row then rows, all written as text. Creates the tab if needed.
+    // The whole tab is one setValues over the larger of the old and the new extent (old cells beyond the new rows
+    // are written as empty text), and nothing is cleared first. A failed write therefore leaves the old tab as it was,
+    // and no decision on it is lost.
+    writeReview(spreadsheetId, tabName, header, rows) {
+      let ss;
+      try { ss = SpreadsheetApp.openById(spreadsheetId); } catch (e) { throw new AppError('SERVER', 'The review spreadsheet could not be opened.'); }
+      const sheet = ss.getSheetByName(tabName) || ss.insertSheet(tabName);
+      const body = [header].concat(rows).map((r) => r.map((c) => (c === null || c === undefined ? '' : String(c))));
+      const totalRows = Math.max(sheet.getLastRow(), body.length);
+      const totalCols = Math.max(sheet.getLastColumn(), header.length);
+      const grid = [];
+      for (let i = 0; i < totalRows; i++) {
+        const row = i < body.length ? body[i].slice() : [];
+        while (row.length < totalCols) row.push('');
+        grid.push(row);
+      }
+      if (totalRows > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), totalRows - sheet.getMaxRows());
+      if (totalCols > sheet.getMaxColumns()) sheet.insertColumnsAfter(sheet.getMaxColumns(), totalCols - sheet.getMaxColumns());
+      const range = sheet.getRange(1, 1, totalRows, totalCols);
+      range.setNumberFormat('@');
+      range.setValues(grid);
+      sheet.setFrozenRows(1);
     },
   };
 })();

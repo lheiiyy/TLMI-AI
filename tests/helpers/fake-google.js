@@ -95,6 +95,7 @@ function createGoogle(opts = {}) {
     }
     getDataRange() { return this.getRange(1, 1, Math.max(1, this.getLastRow()), Math.max(1, this.getLastColumn())); }
     insertRowsAfter(after, n) { this.maxRows += n; }
+    insertColumnsAfter(after, n) { this.maxCols += n; }
     deleteRows(start, n) {
       const next = new Map();
       for (const [k, v] of this.cells) {
