@@ -1,6 +1,8 @@
 // Writes audit rows and record history; reads them for audit.list and history.get (spec section 9).
 const AuditService = (function () {
   const SECRET_KEYS = ['pin', 'password', 'token', 'hr_employee_no'];
+  // History shows that these changed, never their value: record_history is append-only and cannot be cleaned.
+  const HIDDEN_VALUES = ['password_hash', 'salt'];
   const FILTERS = ['event', 'entity', 'user_id', 'from', 'to'];
   const MAX_PAGE = 50;
 
@@ -20,11 +22,23 @@ const AuditService = (function () {
 
   function actorOf(ctx) { return { userId: ctx.userId || '', now: ctx.now }; }
 
-  function event(uow, ctx, e) {
-    let detail = '';
-    if (e.detail !== undefined && e.detail !== null) {
-      detail = typeof e.detail === 'string' ? e.detail : JSON.stringify(strip(e.detail));
+  // Detail is JSON text. Text that parses is stripped like an object; text that does not parse is kept as {text}.
+  // Too long a detail is cut, so that the audit row can never fail the business write it belongs to.
+  function detailText(raw) {
+    if (raw === undefined || raw === null) return '';
+    let obj = raw;
+    if (typeof raw === 'string') {
+      try { obj = JSON.parse(raw); } catch (e) { obj = null; }
+      if (obj === null || typeof obj !== 'object') obj = { text: raw };
     }
+    const s = JSON.stringify(strip(obj));
+    if (s.length <= Validator.DEFAULT_MAX) return s;
+    // 8000 characters, each at most 6 after escaping, plus the marker, stay under the field maximum.
+    return JSON.stringify({ truncated: true, text: s.slice(0, 8000) });
+  }
+
+  function event(uow, ctx, e) {
+    const detail = detailText(e.detail);
     return uow.append('audit_log', {
       hr_employee_no: text(ctx.hrEmployeeNo),
       event: e.event,
@@ -43,9 +57,11 @@ const AuditService = (function () {
     const rows = [];
     tracked.forEach((f) => {
       if (text(before[f]) === text(after[f])) return;
+      const hide = HIDDEN_VALUES.indexOf(f) >= 0;
       rows.push(uow.append('record_history', {
         entity: entity, entity_id: entityId, field: f,
-        old_value: text(before[f]), new_value: text(after[f]), request_id: text(ctx.requestId),
+        old_value: hide ? '[changed]' : text(before[f]), new_value: hide ? '[changed]' : text(after[f]),
+        request_id: text(ctx.requestId),
       }, actorOf(ctx)));
     });
     return rows;
@@ -73,8 +89,8 @@ const AuditService = (function () {
       (!f.event || r.event === f.event)
       && (!f.entity || r.entity === f.entity)
       && (!f.user_id || r.user_id === f.user_id)
-      && (!f.from || r.at.slice(0, 10) >= f.from)
-      && (!f.to || r.at.slice(0, 10) <= f.to));
+      && (!f.from || Clock.dateOfIso(r.at) >= f.from)
+      && (!f.to || Clock.dateOfIso(r.at) <= f.to));
     rows.sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
     if (p.cursor) rows = rows.filter((r) => r.id < p.cursor);
     const page = rows.slice(0, pageSize);

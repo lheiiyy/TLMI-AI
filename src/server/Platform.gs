@@ -7,6 +7,8 @@ const Clock = {
   now() { return new Date(); },
   iso() { return new Date().toISOString(); },
   today() { return Utilities.formatDate(new Date(), ORG_TIME_ZONE, 'yyyy-MM-dd'); },
+  // The organisation (Asia/Manila) date of an ISO 8601 UTC timestamp.
+  dateOfIso(iso) { return Utilities.formatDate(new Date(iso), ORG_TIME_ZONE, 'yyyy-MM-dd'); },
   // A Date read from a cell, as yyyy-mm-dd in the organisation time zone.
   dateText(d) { return Utilities.formatDate(d, ORG_TIME_ZONE, 'yyyy-MM-dd'); },
   // Compare timestamps without touching Date elsewhere.
