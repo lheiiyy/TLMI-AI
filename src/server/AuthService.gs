@@ -31,6 +31,7 @@ const AuthService = (function () {
     'users.deactivate': [ADMIN], 'users.reactivate': [ADMIN],
     'settings.list': [MANAGER, SENIOR, ADMIN], 'settings.get': [MANAGER, SENIOR, ADMIN],
     'settings.set': [ADMIN],
+    'seed.run': [ADMIN],
     'audit.list': [SENIOR, ADMIN],
     'history.get': [ADMIN],
   };
