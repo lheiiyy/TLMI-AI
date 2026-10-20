@@ -131,7 +131,7 @@ Settings and lookups:
 - `CFG-047` (extension limit, int 1 to 10) is added to the settings definitions **without a default and without a seed**, so Admin can set it on the Settings screen. Until then `tl.extend` returns `CONFIG_MISSING` (RULE-104).
 - The CFG-002 label becomes "Wrong passwords before a pause".
 - The certification component `TL course program` (stage `certification`, `required` true) is added to the seed list, so a seed run on an existing database adds it and skips the rest (P2-13).
-- **TLMI setting `TLMI-001` (TL course program pass mark, int 1 to 100), no default, not seeded.** TDMS has no key for this TLMI requirement, so the key is TLMI-only (it cannot clash with a later TDMS `CFG-` number) and is reported to TDMS for PH-12. While unset, certification only needs the grade recorded (§7.5).
+- **TLMI setting `TLMI-001` (TL course program pass mark, int 1 to 100), seeded at 90** (Leo, 2026-10-21; §12 question 5). TDMS has no key for this TLMI requirement, so the key is TLMI-only (it cannot clash with a later TDMS `CFG-` number) and is reported to TDMS for PH-12. If Admin ever removes it from use, certification would only need the grade recorded (§7.5).
 - `tl_quit_reason` (CFG-018) stays an empty Admin list; `tl.quit` returns `CONFIG_MISSING` (key `CFG-018`) while it has no active value. `tl_close_reason` keeps `Disqualified` and takes the values Admin adds.
 
 ## 6. Part 2B: methods and permissions
@@ -191,7 +191,7 @@ final = (w_checklist x checklist + w_exam x exam + w_feedback x feedback) / 100,
 
 ### 7.5 Certify
 
-From Certification check, when the latest attempt's final is at or above the pass mark and a TL course program grade is in force (`BLOCKED_BY_RULE` RULE-102 otherwise). The course program grade is checked against the course pass mark TLMI-001 when that setting is set (§12, question 5); while it is not set, the grade only has to be recorded. Sets Certified, `certified_on` = the attempt's `assessed_on`, and stamps `pass_mark_used` and `weights_version` (D008). No approval step (D067).
+From Certification check, when the latest attempt's final is at or above the pass mark and a TL course program grade is in force (`BLOCKED_BY_RULE` RULE-102 otherwise). The course program grade must be at or above the course pass mark TLMI-001 (90, §12 question 5), checked with the setting in force on the check date. Sets Certified, `certified_on` = the attempt's `assessed_on`, and stamps `pass_mark_used` and `weights_version` (D008). No approval step (D067).
 
 ### 7.6 Extend (RULE-104)
 
@@ -321,7 +321,7 @@ It never guesses a value that has no officer decision, never merges two persons 
 
 ## 11. Testing and gate G2
 
-**Unit tests (Node):** every `TlRules` function with the spec's values (the deadline across month ends and leap years; the final grade with both feedback forms, one form, and the 84.995 boundary); the transition table generated for every state x action x role (Admin allowed for the officer actions, refused for return and promote); certify without a TL course program grade, and with a course grade below TLMI-001 once it is set; each `tl.*` method's refusals (`BLOCKED_BY_RULE` with the right `rule_id`, `CONFIG_MISSING` for CFG-047 and CFG-018, `CONFLICT`); grade corrections by `supersedes_id`; status and record history rows for every write; password sign-in (unknown ID takes no lock and writes no row; the pause per user; the audit cap; `must_change_password` blocks other methods; the epoch ends other sessions; the rehash on sign-in; no password or hash in any response, audit row or log line); the import (every readiness item and issue code against invented rows in the real patterns, the name rule, idempotent re-commit, a commit stopped after one chunk and continued, reconciliation counts).
+**Unit tests (Node):** every `TlRules` function with the spec's values (the deadline across month ends and leap years; the final grade with both feedback forms, one form, and the 84.995 boundary); the transition table generated for every state x action x role (Admin allowed for the officer actions, refused for return and promote); certify without a TL course program grade, and with a course grade below TLMI-001 (89.99 blocks, 90 passes); each `tl.*` method's refusals (`BLOCKED_BY_RULE` with the right `rule_id`, `CONFIG_MISSING` for CFG-047 and CFG-018, `CONFLICT`); grade corrections by `supersedes_id`; status and record history rows for every write; password sign-in (unknown ID takes no lock and writes no row; the pause per user; the audit cap; `must_change_password` blocks other methods; the epoch ends other sessions; the rehash on sign-in; no password or hash in any response, audit row or log line); the import (every readiness item and issue code against invented rows in the real patterns, the name rule, idempotent re-commit, a commit stopped after one chunk and continued, reconciliation counts).
 
 **Browser tests (Playwright, localhost, mock transport):** at 1280, 768 and 375 pixels, for the five roles: sign in with an employee ID and password; the forced password change; enroll a new person (with the duplicate warning), record five entry grades and see Probationary, record a certification check, certify; extend refused until CFG-047 is set; quit; a Supervisor promotes and an officer has no Promote button and gets `FORBIDDEN` from a direct call; Admin validates, skips a row and commits the import on fake sheets. No console errors and no failed requests.
 
@@ -341,8 +341,6 @@ It never guesses a value that has no officer decision, never merges two persons 
 2. **Yes**, Admin also does the officer actions. → P2-6, §6. Promotion and return to probation stay with Supervisor and higher.
 3. **OK**: Admin sets the extension limit (CFG-047) and the quit reasons (CFG-018) in the app before the first extension and the first quit; no code change is needed.
 
-**Question (the build does not wait for it):**
+5. The passing grade of the TL course program is **90**. It is seeded as TLMI-001; Admin can change it on the Settings screen (a new version, as for every setting).
 
-5. **Before the first new certification:** what is the passing grade of the TL course program? Admin sets it as TLMI-001 on the Settings screen. Until it is set, certification needs the course grade recorded but does not check its value.
-
-**Decided in this design (tell the Reviewer if you disagree):** P2-13 takes your answer 1 as a recorded requirement outside the final grade formula, with the pass mark TLMI-001 (question 5); P2-2 (probation starts with the last entry grade), P2-3 (return to probation only from Certification check and Extended), P2-4 (one feedback form counts alone), P2-5 (rounding), P2-10 (backup date at commit), P2-12 (CEBU TL tab is a view of MASTER_LOG); no e-mail reset (§4.3); uniforms and appointment letters are imported in Phase 3.
+**Decided in this design (tell the Reviewer if you disagree):** P2-13 takes your answer 1 as a recorded requirement outside the final grade formula, with the pass mark TLMI-001 = 90 (answer 5); P2-2 (probation starts with the last entry grade), P2-3 (return to probation only from Certification check and Extended), P2-4 (one feedback form counts alone), P2-5 (rounding), P2-10 (backup date at commit), P2-12 (CEBU TL tab is a view of MASTER_LOG); no e-mail reset (§4.3); uniforms and appointment letters are imported in Phase 3.
