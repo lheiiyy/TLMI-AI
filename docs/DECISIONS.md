@@ -24,6 +24,12 @@ Gate G0 decisions were closed on **2026-10-19** by adopting the TDMS answer. TLM
 | --- | --- | --- | --- | --- |
 | X-1 | Phase 1 sign-in uses a name list, plus a PIN for Admin, instead of Employee ID and password (item 9 above; TDMS D024, AD-01, AD-10). Accepted by Leo on 2026-10-19. | `TLMI_DB` holds no Team Leader record. | Start of Phase 2, before the first real record is loaded. | [Phase 1 design](../specs/2026-10-19-phase-1-core-data-design.md), §6 |
 
+## Known platform limits (TLMI only)
+
+| # | Limit | Mitigation | Reference |
+| --- | --- | --- | --- |
+| L-1 | Apps Script has no transaction across ranges, so a failed write part-way can leave some tables written. | The script lock is held for the whole commit. Tables are written in a fixed order: `id_counters`, data tables, `record_history`, `audit_log` last. A failure can leave a saved change without its audit row, never an audit row for an unsaved change. An edited row is one write each; appends to one table are one write. | Spec §8; `Repository.commit` |
+
 ## Open in TDMS (TLMI takes the TDMS answer)
 
 | Item | TDMS reference | Interim in TLMI |

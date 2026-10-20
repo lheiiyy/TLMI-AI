@@ -201,11 +201,13 @@ const Repository = (function () {
       return { before: before, after: clone(row), changed: changed };
     }
 
-    // Counters first, so an ID is never reused even if a later write fails.
+    // Apps Script has no transaction across ranges. The script lock plus a fixed write order is the mitigation:
+    // counters first (an ID is never reused), then data tables, then record_history, and audit_log last, so a
+    // failure part-way can leave a saved change without its audit row but never an audit row for a change that
+    // was not saved. Appends to one table are one setValues; an edited row is one setValues each.
     commit() {
-      const order = [];
-      if (this.tables.has(COUNTERS)) order.push(COUNTERS);
-      this.tables.forEach((s, name) => { if (name !== COUNTERS) order.push(name); });
+      const rank = (name) => (name === COUNTERS ? 0 : name === 'record_history' ? 2 : name === 'audit_log' ? 3 : 1);
+      const order = Array.from(this.tables.keys()).sort((a, b) => rank(a) - rank(b));
       order.forEach((name) => {
         const state = this.tables.get(name);
         const fresh = state.rows.filter((e) => e.isNew);
