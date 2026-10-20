@@ -43,6 +43,8 @@ test('a mock build uses the mock transport', () => {
   fs.rmSync(out, { recursive: true, force: true });
 });
 
+// The ID-looking strings in this file and in the test below are invented samples. They exist only to prove that the
+// build guard refuses an ID in the source. They are not real sheet, script or document IDs.
 test('build refuses an ID in the source', () => {
   const bad = [
     "SpreadsheetApp.openById('1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcdefg');",

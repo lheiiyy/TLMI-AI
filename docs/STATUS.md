@@ -28,7 +28,7 @@
 ## Blockers and open items
 
 - Open items are listed in [docs/DECISIONS.md](DECISIONS.md) and in spec §12.
-- App code: the whole Phase 1 server, the client (sign-in, master lists, Admin screens) and the tools. 245 unit tests and 54 browser tests pass. Nothing is deployed yet.
+- App code: the whole Phase 1 server, the client (sign-in, master lists, Admin screens) and the tools. 269 unit tests and 54 browser tests pass. Nothing is deployed yet.
 - Branch `docs/scaffold` and the other merged branches could not be deleted from the Code session (the proxy refuses branch deletion); Leo can delete them on GitHub.
 - Interim exception X-1: Phase 1 sign-in is a name list plus an Admin PIN. Password sign-in is the first task of Phase 2, before any Team Leader record is loaded.
 - `clasp` login, the DEV and TEST script projects and the Script Properties are set up by Leo once (see [docs/SETUP.md](SETUP.md)).
