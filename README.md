@@ -18,6 +18,10 @@ TLMI-AI is a web app that replaces the "[sys] Team leader Monitoring" spreadshee
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Decisions adopted from TDMS and open items |
 | [docs/BUSINESS-RULES.md](docs/BUSINESS-RULES.md) | The TLMI subset of the TDMS business rules |
 | [docs/DATA-MODEL.md](docs/DATA-MODEL.md) | The TLMI subset of the TDMS data model |
+| [docs/COLLABORATION.md](docs/COLLABORATION.md) | Who does what: Code builds, the reviewer checks, Leo decides; how pull requests are reviewed |
+| [specs/](specs/) | One spec per phase or slice (Phase 1 design) |
+| [plans/](plans/) | Build plans, one per phase (Phase 1 plan) |
+| [migration/LEGACY-DATA-PROFILE.md](migration/LEGACY-DATA-PROFILE.md) | What the legacy sheet looks like: columns, value lists, known problems |
 
 ## Layout
 
