@@ -35,7 +35,7 @@ In each project open Project settings, then Script Properties, and add these. Us
 | `TLMI_DB_ID` | ID of that environment's `TLMI_DB` sheet |
 | `LEGACY_COPY_ID` | ID of the dated copy of the legacy sheet (never the original) |
 | `REVIEW_SHEET_ID` | ID of the review sheet |
-| `FIRST_ADMIN_NAME` | your own name; temporary, removed by `initFirstAdmin` |
+| `FIRST_ADMIN_NAME` | your own name, typed exactly as it is written in the `SEED_OFFICERS` tab, so that the seed skips you as `EXISTS` and does not make a second user; temporary, removed by `initFirstAdmin` |
 | `ADMIN_PIN_NEW` | the Admin PIN you choose, at least 6 characters; temporary, removed by `initAdminPin` |
 
 `PEPPER`, `ADMIN_PIN_HASH`, `ADMIN_PIN_SALT` and `ADMIN_PIN_FAILS` are written by the setup functions below. Do not type them.
@@ -47,7 +47,7 @@ In each project open Project settings, then Script Properties, and add these. Us
 
 ## 5. Setup functions, in the Apps Script editor
 
-Run them in this order. Each one logs names only, never a value. Open the execution log to read the result.
+Run them in this order, from the editor's Run menu. Each one logs names only, never a value. Open the execution log to read the result. They refuse to run when they are called from the web app, even by the owner's visitors (limit L-3 in [docs/DECISIONS.md](DECISIONS.md)); if one says it can only be run in the script editor, you are not running it from the editor.
 
 1. `setup`: creates the missing tabs in `TLMI_DB`. Safe to run again.
 2. `initSecrets`: makes the password pepper.
@@ -57,7 +57,7 @@ Run them in this order. Each one logs names only, never a value. Open the execut
    - If even 1,000 takes more than 2 seconds, stop and report `BLOCKED — REASON — DECISION REQUIRED`.
    - Record the result here when it is done: iteration count ____, timing on TEST ____ ms, date ____.
 4. `initAdminPin`: turns `ADMIN_PIN_NEW` into a salted, iterated hash and removes the plain PIN. Check that `ADMIN_PIN_NEW` is gone from the Script Properties.
-5. `initFirstAdmin`: makes the first Admin from `FIRST_ADMIN_NAME` and removes that property. It refuses when an active Admin already exists. This is what lets someone sign in and run the seed on an empty database.
+5. `initFirstAdmin`: makes the first Admin from `FIRST_ADMIN_NAME` and removes that property. It refuses when an active Admin already exists, and when any user (active or not) already has that name. This is what lets someone sign in and run the seed on an empty database.
 6. `checkConfig`: lists any Script Property that is still missing, by name.
 
 ## 6. Deploy the web app
@@ -66,6 +66,7 @@ Run them in this order. Each one logs names only, never a value. Open the execut
 2. Execute as: **Me**. Users never receive edit access to `TLMI_DB`.
 3. Who has access: **Only myself** is the default and the safest. Phase 1 holds no Team Leader data, so on TEST you may change it to a wider setting when you share the link with named officers (spec section 6.1, "known limit": anyone who has the link can see the officers' display names and can sign in as a non-Admin role). Do not widen it on LIVE, and do not share the link with anyone who is not a named officer.
 4. Open the web app URL.
+5. After every `npm run deploy:test`, check "Who has access" when you create a new version of the TEST deployment. The push writes the manifest back with `Only myself`, so a widened setting is reset. It fails closed, so it is not a risk, only a surprise for the officers.
 
 ## 7. Seed and import review (in the app)
 
