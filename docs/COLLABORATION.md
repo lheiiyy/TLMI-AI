@@ -38,7 +38,7 @@ Leo, 2026-10-21 (answer B4 in [docs/AUTOMATION.md](AUTOMATION.md)): **merging is
 2. The `tests` check is green on that head.
 3. GitHub reports it mergeable (no conflict).
 4. It carries none of the labels `merge:leo`, `needs:leo` or `status:blocked`.
-5. Its diff touches none of the halt paths: `CLAUDE.md`, `.github/`, `appsscript.json`, the permission table, the `tools/` deploy scripts. Such a pull request gets `merge:leo`, and Leo merges it himself on GitHub.
+5. Its diff touches none of the halt paths: `CLAUDE.md`, `.github/`, `appsscript.json`, the permission table, the `tools/` deploy scripts, `docs/automation/` (the agents' prompts). Such a pull request gets `merge:leo`, and Leo merges it himself on GitHub.
 
 Merge uses a merge commit. Code then deletes the branch (or says that the proxy refused), and records the merge hash in `docs/STATUS.md` in its next pull request (nothing is pushed to `main` directly). If one condition fails, Code does not merge; it hands the pull request to Leo with the condition named. The Reviewer approves in Leo's place on design, spec and code questions (Leo's standing instruction of 2026-10-20).
 
