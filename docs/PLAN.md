@@ -168,7 +168,7 @@ TLMI uses 22 tables. Names and ID prefixes are taken from the TDMS [DATA-MODEL](
 | --- | --- | --- | --- | --- |
 | M1 | `brands` | `BRD-` | name, code | — |
 | M1 | `regions` | `REG-` | name | — |
-| M1 | `locations` (stores) | `LOC-` | store_name, location_type, brand_id, region_id | brands, regions |
+| M1 | `locations` (stores) | `LOC-` | name, location_type, brand_id, region_id | brands, regions |
 | M1 | `stations` | `STN-` | name (Food Prep, Pizza Maker, Cashier, Service, Commis, Dough Maker) | brands |
 | M1 | `lookups` | `LKP-` | category, value, label, sort_order | — |
 | M1 | `assessment_components` | `CMP-` | name, stage (entry or certification), required, weight; seeded with the five entry grades plus checklist, exam, kitchen feedback and manager feedback | — |

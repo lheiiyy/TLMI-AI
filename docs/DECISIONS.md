@@ -18,6 +18,12 @@ Gate G0 decisions were closed on **2026-10-19** by adopting the TDMS answer. TLM
 | 10 | History is never overwritten; a grade correction is a new `assessments` row with `supersedes_id` and a required reason. | D048, RULE-107, D072 |
 | 11 | Uniform: one row per transaction; a repeated DR number, item and size is a warning, not a block. | RULE-108, D072 (ENT-063) |
 
+## Interim exceptions (TLMI only, time-limited)
+
+| # | Exception | Condition while it applies | Ends | Reference |
+| --- | --- | --- | --- | --- |
+| X-1 | Phase 1 sign-in uses a name list, plus a PIN for Admin, instead of Employee ID and password (item 9 above; TDMS D024, AD-01, AD-10). Accepted by Leo on 2026-10-19. | `TLMI_DB` holds no Team Leader record. | Start of Phase 2, before the first real record is loaded. | [Phase 1 design](../specs/2026-10-19-phase-1-core-data-design.md), §6 |
+
 ## Open in TDMS (TLMI takes the TDMS answer)
 
 | Item | TDMS reference | Interim in TLMI |

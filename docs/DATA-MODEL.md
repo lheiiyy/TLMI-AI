@@ -15,7 +15,7 @@ Table names, columns and ID prefixes follow lheiiyy/TDMS `docs/DATA-MODEL.md` (Â
 | --- | --- | --- | --- | --- | --- |
 | M1 | `brands` | `BRD-` | MUT | name, code | ENT-010 |
 | M1 | `regions` | `REG-` | MUT | name | ENT-011 |
-| M1 | `locations` (stores) | `LOC-0001` | MUT | store_name, location_type, brand_id, region_id | ENT-012 |
+| M1 | `locations` (stores) | `LOC-0001` | MUT | name, location_type, brand_id, region_id | ENT-012 |
 | M1 | `stations` | `STN-` | MUT | name, brand_id | ENT-014 |
 | M1 | `lookups` | `LKP-` | MUT | category, value, label, sort_order | ENT-003 |
 | M1 | `assessment_components` | `CMP-` | MUT | name, stage, required, weight | ENT-016 |
