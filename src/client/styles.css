@@ -116,6 +116,7 @@ table.grid td.row-actions::before { content: none; }
   table.grid td { display: table-cell; text-align: left; padding: .55rem .75rem; border-top: 1px solid var(--line); }
   table.grid td::before { content: none; }
   table.grid td.row-actions { white-space: nowrap; }
+  table.grid td.row-actions button + button { margin-left: .5rem; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
 }
 

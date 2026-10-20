@@ -53,7 +53,6 @@
   function errText(e) {
     if (!e) return 'Something went wrong.';
     if (e.code === 'CONFLICT') return 'Changed by ' + ((e.current && e.current.updated_by_name) || 'someone else') + ', reload.';
-    if (e.code === 'FORBIDDEN') return 'You are not allowed to do this.';
     if (e.code === 'VALIDATION' && e.fields && e.fields.length) return 'Check the marked fields. ' + e.fields.map((f) => f.message).join(' ');
     return e.message || 'Something went wrong.';
   }

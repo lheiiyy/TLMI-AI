@@ -278,6 +278,7 @@ test('importReview.get returns counts only, never an id or link', () => {
   assert.equal(got.data.last_run.status, 'Done');
   assert.equal(got.data.counts.bad_values, env.objects('bad_values').length);
   assert.equal(got.data.counts.persons_proposed, 9);
+  assert.equal(got.data.counts.summary, env.tab('summary').length - 1, 'the summary rows are counted too');
   const text = JSON.stringify(got);
   for (const bad of [REVIEW_ID, L.LEGACY_ID, 'docs.google', 'http']) assert.ok(!text.includes(bad), bad);
 });
