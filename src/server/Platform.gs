@@ -89,6 +89,27 @@ const Hasher = {
   },
 };
 
+// Every top-level function can be called from the browser with google.script.run, and the web app runs as the owner.
+// Functions that are only for the owner in the script editor (Setup.gs) call EditorGuard.check() first. In the editor the
+// effective and the active user are both the owner; a web app visitor who is not the owner has an empty or a different
+// active user and is refused. It fails closed. The addresses are compared in memory and never logged or returned.
+const EditorGuard = {
+  check() {
+    let effective = '';
+    let active = '';
+    try {
+      effective = Session.getEffectiveUser().getEmail();
+      active = Session.getActiveUser().getEmail();
+    } catch (e) {
+      effective = '';
+      active = '';
+    }
+    if (!effective || !active || effective !== active) {
+      throw new AppError('FORBIDDEN', 'This function can only be run by the owner in the script editor.');
+    }
+  },
+};
+
 const Html = {
   page(name) {
     return HtmlService.createHtmlOutputFromFile(name).setTitle('TLMI')

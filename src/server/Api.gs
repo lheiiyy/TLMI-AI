@@ -1,4 +1,5 @@
-// The only functions the browser can call: tlmiApi(request) and doGet(). Spec section 4.
+// The only functions the browser may use: tlmiApi(request) and doGet(). Spec section 4. Any other top-level function can be
+// reached with google.script.run, so each of those starts with EditorGuard.check() (Platform.gs, Setup.gs; limit L-3).
 // Order of checks: parse, session, user and role, permission table, validate params, service. The first failure stops the call.
 const Api = (function () {
   const REQUEST_KEYS = ['v', 'rid', 'method', 'params', 'token', 'reason'];
