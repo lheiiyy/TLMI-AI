@@ -36,22 +36,33 @@ const SeedService = (function () {
       const skipped = [];
       const rejected = [];
       const exists = (table, value) => skipped.push({ table: table, value: value, reason: 'EXISTS' });
+      // One audit row per created record, with the event names the services use (CLAUDE.md: every change is audited).
+      const made = (event, table, row, extra) => {
+        AuditService.event(uow, ctx, { event: event, entity: table, entityId: row.id, detail: Object.assign({ source: 'SEED' }, extra || {}) });
+        return row;
+      };
 
       // 1. brand
       let brand = uow.all('brands').find((b) => b.code === BRAND.code);
       if (brand) exists('brands', BRAND.name);
-      else { brand = uow.insert('brands', BRAND, actor); created.brands++; }
+      else { brand = made('MASTER.BRAND.CREATED', 'brands', uow.insert('brands', BRAND, actor)); created.brands++; }
 
-      // 2. regions: distinct values of column B, first spelling wins
+      // 2. regions: distinct values of column B, first spelling wins. A different spelling of a region seen before
+      // (case or spacing only) is skipped and reported once; an exact repeat is not reported (every store repeats its region).
       const regionByKey = new Map();
       uow.all('regions').forEach((r) => regionByKey.set(key(r.name), r));
-      const seenRegion = new Set();
-      settingsTab.forEach((row, i) => {
+      const seenRegion = new Map();
+      settingsTab.forEach((row) => {
         const name = tidy(row[1]);
-        if (name === '' || seenRegion.has(key(name))) return;
-        seenRegion.add(key(name));
+        if (name === '') return;
+        if (seenRegion.has(key(name))) {
+          const spellings = seenRegion.get(key(name));
+          if (!spellings.has(name)) { spellings.add(name); skipped.push({ table: 'regions', value: name, reason: 'DUPLICATE_IN_SOURCE' }); }
+          return;
+        }
+        seenRegion.set(key(name), new Set([name]));
         if (regionByKey.has(key(name))) { exists('regions', name); return; }
-        regionByKey.set(key(name), uow.insert('regions', { name: name }, actor));
+        regionByKey.set(key(name), made('MASTER.REGION.CREATED', 'regions', uow.insert('regions', { name: name }, actor)));
         created.regions++;
       });
 
@@ -59,7 +70,7 @@ const SeedService = (function () {
       const haveLookup = (cat, val) => uow.all('lookups').some((l) => l.category === cat && key(l.value) === key(val));
       const addLookup = (cat, val, system, order) => {
         if (haveLookup(cat, val)) { exists('lookups', cat + ':' + val); return; }
-        uow.insert('lookups', { category: cat, value: val, label: val, sort_order: order, is_system: system }, actor);
+        made('LOOKUP.CREATED', 'lookups', uow.insert('lookups', { category: cat, value: val, label: val, sort_order: order, is_system: system }, actor));
         created.lookups++;
       };
       LOCATION_TYPES.forEach((t, i) => addLookup('location_type', t[0], t[1], i + 1));
@@ -68,14 +79,14 @@ const SeedService = (function () {
       // 4. stations
       STATIONS.forEach((name) => {
         if (uow.all('stations').some((s) => s.brand_id === brand.id && key(s.name) === key(name))) { exists('stations', name); return; }
-        uow.insert('stations', { name: name, brand_id: brand.id }, actor);
+        made('MASTER.STATION.CREATED', 'stations', uow.insert('stations', { name: name, brand_id: brand.id }, actor));
         created.stations++;
       });
 
       // 5. assessment components
       const addComponent = (name, stage, required) => {
         if (uow.all('assessment_components').some((c) => key(c.name) === key(name))) { exists('assessment_components', name); return; }
-        uow.insert('assessment_components', { name: name, stage: stage, required: required }, actor);
+        made('COMPONENT.CREATED', 'assessment_components', uow.insert('assessment_components', { name: name, stage: stage, required: required }, actor));
         created.assessment_components++;
       };
       ENTRY_COMPONENTS.forEach((n) => addComponent(n, 'entry', true));
@@ -85,9 +96,10 @@ const SeedService = (function () {
       SETTING_VALUES.forEach((s) => {
         if (uow.all('settings').some((r) => r.setting_key === s[0])) { exists('settings', s[0]); return; }
         const def = SettingsService.SETTING_DEFS[s[0]];
-        uow.insert('settings', {
+        const row = uow.insert('settings', {
           setting_key: s[0], value: s[1], value_type: def.value_type, version: 1, reason: 'Initial seed', effective_from: Clock.today(),
         }, actor);
+        made('SETTING.CHANGED', 'settings', row, { setting_key: s[0], old_value: null, new_value: s[1], effective_from: row.effective_from, reason: 'Initial seed' });
         created.settings++;
       });
 
@@ -104,7 +116,7 @@ const SeedService = (function () {
         const region = regionByKey.get(key(tidy(row[1])));
         if (!region) { rejected.push({ table: 'locations', row: rowNo, value: name, reason: 'REGION_MISSING' }); return; }
         seenStore.add(key(name));
-        uow.insert('locations', { name: name, location_type: 'Store', brand_id: brand.id, region_id: region.id }, actor);
+        made('LOCATION.CREATED', 'locations', uow.insert('locations', { name: name, location_type: 'Store', brand_id: brand.id, region_id: region.id }, actor));
         created.locations++;
       });
 
@@ -127,8 +139,11 @@ const SeedService = (function () {
         if (users.some((u) => key(u.display_name) === key(name))) { skipped.push({ table: 'users', value: raw, reason: 'EXISTS' }); return; }
         if (no !== '' && users.some((u) => u.hr_employee_no === no)) { rejected.push({ table: 'users', row: rowNo, value: name, reason: 'HR_NUMBER_DUPLICATE' }); return; }
         const user = uow.insert('users', no === '' ? { display_name: name, role: role } : { display_name: name, role: role, hr_employee_no: no }, actor);
+        made('USER.CREATED', 'users', user, { role: role });
         if (iActive >= 0 && /^(false|no|0)$/i.test(tidy(row[iActive]))) {
-          uow.update('users', user.id, {}, { expectedVersion: 1, actor: actor, isActive: false });
+          const off = uow.update('users', user.id, {}, { expectedVersion: 1, actor: actor, isActive: false });
+          AuditService.changes(uow, ctx, 'users', user.id, off.before, off.after);
+          made('USER.DEACTIVATED', 'users', user, { changed: off.changed });
         }
         created.users++;
       });
