@@ -30,6 +30,13 @@ Gate G0 decisions were closed on **2026-10-19** by adopting the TDMS answer. TLM
 | --- | --- | --- | --- |
 | L-1 | Apps Script has no transaction across ranges, so a failed write part-way can leave some tables written. | The script lock is held for the whole commit. Tables are written in a fixed order: `id_counters`, data tables, `record_history`, `audit_log` last. A failure can leave a saved change without its audit row, never an audit row for an unsaved change. An edited row is one write each; appends to one table are one write. | Spec §8; `Repository.commit` |
 
+## Open for Phase 2 (raised in reviews)
+
+| Item | Why | Planned answer |
+| --- | --- | --- |
+| Anonymous sign-in calls take the script lock and write a failed-sign-in audit row each. Anyone with the web app link could call `auth.signIn` in a loop with random user IDs, slowing other users (`BUSY`) and growing `audit_log`. | Reviewer finding on PR #5 (minor). No Team Leader data is in TLMI_DB in Phase 1 (spec §6.1 known limit). | When password sign-in replaces the interim sign-in: throttle by employee ID and cap failed-sign-in audit rows per day. |
+| The import review does not compare with the hand-kept SUMMARY tab of the legacy copy. | The layout of that tab is not specified, and comparing would need a guess. | Leo or the Reviewer describes the layout; then `summary` gets the difference rows. |
+
 ## Open in TDMS (TLMI takes the TDMS answer)
 
 | Item | TDMS reference | Interim in TLMI |
