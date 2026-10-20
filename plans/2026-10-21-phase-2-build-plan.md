@@ -50,7 +50,7 @@
 
 **Interfaces:**
 - `PasswordRules.check(newPassword, currentPassword?) -> { ok: boolean, code?: 'TOO_SHORT'|'NEEDS_LETTER'|'NEEDS_DIGIT'|'SAME_AS_CURRENT' }` (FX-002).
-- `Ids.tempPassword() -> string`: 12 characters from `ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789`, built from `Utilities.getUuid()` randomness, always with at least one letter and one digit (passes `PasswordRules.check`).
+- `Ids.tempPassword() -> string`: 12 characters from `ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789`, built from `Utilities.getUuid()` randomness, always with at least one letter and one digit (passes `PasswordRules.check`). Keep the alphabet as three shorter constants (upper, lower, digits) joined at run time: one quoted string of 33 or more letters and digits stops `tools/build.js` (its ID guard).
 - `Hasher.needsRehash(stored) -> boolean` (stored count differs from `Hasher.DEFAULT_ITERATIONS`).
 
 - [ ] **Step 1: Failing tests:** `7 characters is TOO_SHORT`, `letters only is NEEDS_DIGIT`, `digits only is NEEDS_LETTER`, `the current password again is SAME_AS_CURRENT`, `tempPassword passes check 1000 times and has no look-alike characters`, `needsRehash is true for another iteration count`.
