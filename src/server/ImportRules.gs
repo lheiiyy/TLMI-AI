@@ -69,6 +69,8 @@ const ImportRules = (function () {
     if (!n) return { status: 'none' };
     const users = userNames.map((u) => ({ name: u, n: normalizeName(u) }));
     const starts = users.filter((u) => u.n.indexOf(n) === 0 || u.n.split(' ')[0].indexOf(n) === 0);
+    // One or two letters are not a name: they can only be a candidate.
+    if (n.length < 3) return starts.length ? { status: 'candidate', candidates: starts.map((u) => u.name) } : { status: 'none' };
     if (starts.length === 1) return { status: 'exact', match: starts[0].name };
     if (starts.length > 1) return { status: 'candidate', candidates: starts.map((u) => u.name) };
     const limit = n.length >= 6 ? 2 : 1;
@@ -90,16 +92,25 @@ const ImportRules = (function () {
   const pad = (n, w) => String(n).padStart(w, '0');
   const isoOf = (y, m, d) => pad(y, 4) + '-' + pad(m, 2) + '-' + pad(d, 2);
 
+  // For dd/mm/yyyy text whose day is 12 or less and differs from the month: the date read with day and month swapped.
+  function swappedIso(display) {
+    const mt = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?: \d{1,2}:\d{2}(?::\d{2})?)?$/.exec(tidy(display));
+    if (!mt) return null;
+    const d = Number(mt[1]), m = Number(mt[2]), y = Number(mt[3]);
+    if (d > 12 || m === d || !validDate(y, d, m)) return null;
+    return isoOf(y, d, m);
+  }
+
   // Formats: d MMM yyyy, dd/mm/yyyy (day first, optional time), yyyy-mm-dd. today is yyyy-mm-dd.
   function parseDate(display, today) {
     const s = tidy(display);
     if (s === '') return {};
-    let y, m, d, slash = false;
+    let y, m, d;
     let mt = /^(\d{1,2}) ([A-Za-z]{3,9}) (\d{4})$/.exec(s);
     if (mt) {
       d = Number(mt[1]); m = MONTHS[mt[2].slice(0, 3).toUpperCase()]; y = Number(mt[3]);
     } else if ((mt = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?: \d{1,2}:\d{2}(?::\d{2})?)?$/.exec(s))) {
-      d = Number(mt[1]); m = Number(mt[2]); y = Number(mt[3]); slash = true;
+      d = Number(mt[1]); m = Number(mt[2]); y = Number(mt[3]);
     } else if ((mt = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s))) {
       y = Number(mt[1]); m = Number(mt[2]); d = Number(mt[3]);
     } else {
@@ -110,7 +121,8 @@ const ImportRules = (function () {
     const iso = isoOf(y, m, d);
     if (iso > today) {
       const out = { iso: iso, issue: 'FUTURE' };
-      if (slash && d <= 12 && m !== d && validDate(y, d, m) && isoOf(y, d, m) <= today) out.proposed = isoOf(y, d, m);
+      const swapped = swappedIso(s);
+      if (swapped && swapped <= today) out.proposed = swapped;
       return out;
     }
     return { iso: iso };
@@ -126,7 +138,8 @@ const ImportRules = (function () {
     const n = Number(m[1]);
     if (n < 0) return { issue: 'OUT_OF_RANGE' };
     if (n <= 100) return { value: n };
-    if (Number.isInteger(n) && n / 100 <= 100) return { issue: 'PERCENT_SCALED', proposed: n / 100 };
+    // The legacy pattern is four digits with two implied decimals (9475% is 94.75). Nothing else is proposed.
+    if (Number.isInteger(n) && n >= 1000 && n <= 10000) return { issue: 'PERCENT_SCALED', proposed: n / 100 };
     return { issue: 'OUT_OF_RANGE' };
   }
 
@@ -185,7 +198,10 @@ const ImportRules = (function () {
       issues.push(issue);
     });
     if (dates.entry_date && dates.date_certified && dates.date_certified < dates.entry_date) {
-      issues.push({ field: 'date_certified', raw: tidy(rec.date_certified), code: 'CERT_BEFORE_ENTRY' });
+      const issue = { field: 'date_certified', raw: tidy(rec.date_certified), code: 'CERT_BEFORE_ENTRY' };
+      const swapped = swappedIso(rec.date_certified);
+      if (swapped && swapped >= dates.entry_date && swapped <= today) issue.proposed = swapped;
+      issues.push(issue);
     }
     GRADES.forEach((f) => {
       const g = parseGrade(rec[f]);

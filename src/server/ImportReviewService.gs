@@ -66,17 +66,27 @@ const ImportReviewService = (function () {
     return rows;
   }
 
-  // Confirmed aliases from the previous review: decision "confirm" on a name_mapping row.
-  function readAliases(reviewId) {
+  // Confirmed aliases from the previous review (decision "confirm" on a name_mapping row). An alias is made only from
+  // a typed corrected_value, or the match, or a single candidate, and the target must be an active master record of that
+  // kind. Otherwise there is no alias and the row says why (CONFIRM_NEEDS_VALUE or ALIAS_TARGET_UNKNOWN). Nothing is guessed.
+  function readAliases(reviewId, lists) {
+    const out = { aliases: { store: {}, station: {}, officer: {} }, notes: {} };
     const old = Repository.readExternal(reviewId, 'name_mapping', { optional: true });
-    const out = { store: {}, station: {}, officer: {} };
     if (!old || old.length < 2) return out;
+    const masters = { store: lists.stores, station: lists.stations, officer: lists.users };
     const h = old[0];
     const i = (n) => h.indexOf(n);
     old.slice(1).forEach((r) => {
       if (tidy(r[i('decision')]).toLowerCase() !== 'confirm') return;
-      const target = tidy(r[i('corrected_value')]) || tidy(r[i('match')]) || tidy(r[i('candidates')]).split(' | ')[0];
-      if (target && out[r[i('kind')]]) out[r[i('kind')]][tidy(r[i('raw_value')])] = target;
+      const kind = r[i('kind')];
+      const raw = tidy(r[i('raw_value')]);
+      if (!masters[kind]) return;
+      const cands = tidy(r[i('candidates')]) === '' ? [] : tidy(r[i('candidates')]).split(' | ');
+      const target = tidy(r[i('corrected_value')]) || tidy(r[i('match')]) || (cands.length === 1 ? cands[0] : '');
+      if (!target) { out.notes[kind + '|' + raw] = 'CONFIRM_NEEDS_VALUE'; return; }
+      const hit = masters[kind].find((m) => ImportRules.normalizeName(m) === ImportRules.normalizeName(target));
+      if (!hit) { out.notes[kind + '|' + raw] = 'ALIAS_TARGET_UNKNOWN'; return; }
+      out.aliases[kind][raw] = hit;
     });
     return out;
   }
@@ -166,7 +176,7 @@ const ImportReviewService = (function () {
     const counts = { exact: 0, candidate: 0, none: 0 };
     Array.from(mapping.values()).sort((a, b) => (a.kind + a.raw < b.kind + b.raw ? -1 : 1)).forEach((m) => {
       let r;
-      const al = aliases[m.kind] || {};
+      const al = aliases.aliases[m.kind] || {};
       if (m.kind === 'officer') {
         r = ImportRules.looksLikeNote(m.raw) ? { status: 'none', note: 'LOOKS_LIKE_NOTE' }
           : (al[m.raw] ? { status: 'exact', match: al[m.raw], via: 'alias' } : ImportRules.matchOfficer(m.raw, lists.users));
@@ -174,8 +184,9 @@ const ImportReviewService = (function () {
         r = ImportRules.matchMaster(m.raw, m.kind === 'store' ? lists.stores : lists.stations, al);
       }
       counts[r.status]++;
+      const why = r.note || (r.status === 'exact' ? '' : aliases.notes[m.kind + '|' + m.raw] || '');
       mapRows.push({ id: 'name_mapping|' + m.kind + ':' + m.raw,
-        cells: [m.kind, m.raw, ImportRules.normalizeName(m.raw), r.status, r.match || '', (r.candidates || []).join(' | '), r.note || '', m.count, m.rows.slice(0, 20).join(', ')] });
+        cells: [m.kind, m.raw, ImportRules.normalizeName(m.raw), r.status, r.match || '', (r.candidates || []).join(' | '), why, m.count, m.rows.slice(0, 20).join(', ')] });
     });
 
     // persons and duplicates
@@ -240,8 +251,12 @@ const ImportReviewService = (function () {
       let tail = ['', '', '', '', ''];
       const same = old.byKey.get(key);
       const prior = old.byId.get(r.id);
-      if (same) tail = same.tail.slice();
-      else if (prior && tail.concat(prior.tail).some(() => true) && prior.tail.slice(0, 4).some((c) => tidy(c) !== '')) {
+      if (same) {
+        // The officer's needs_review is kept (an officer clears it after re-checking). A row that was SOURCE_CHANGED and
+        // is back in the source is marked TRUE, so that someone looks once.
+        tail = same.tail.slice();
+        if (tail[4] === 'SOURCE_CHANGED') tail[4] = 'TRUE';
+      } else if (prior && prior.tail.slice(0, 4).some((c) => tidy(c) !== '')) {
         tail = prior.tail.slice(0, 4).concat(['TRUE']);
       }
       out.push(r.cells.map((c) => String(c)).concat([key], tail));
@@ -269,7 +284,7 @@ const ImportReviewService = (function () {
         stations: Repository.all('stations').filter((s) => s.is_active).map((s) => s.name),
         users: Repository.all('users').filter((u) => u.is_active).map((u) => u.display_name),
       };
-      built = build(master, uniform, lists, readAliases(ids.review), today);
+      built = build(master, uniform, lists, readAliases(ids.review, lists), today);
       // everything is built before the first tab is written, so a failure above leaves the old review in place
       Object.keys(TABS).forEach((tab) => {
         const joined = withDecisions(tab, built.tabs[tab], Repository.readExternal(ids.review, tab, { optional: true }));
