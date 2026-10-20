@@ -34,7 +34,26 @@ function initAdminPin() {
   Log.info('initAdminPin: the Admin PIN is set; ADMIN_PIN_NEW was removed');
 }
 
-const REQUIRED_PROPERTIES = ['ENV', 'TLMI_DB_ID', 'LEGACY_COPY_ID', 'REVIEW_SHEET_ID', 'PEPPER', 'ADMIN_PIN_HASH', 'ADMIN_PIN_SALT'];
+// Makes the first Admin, so that someone can sign in and run the seed. The owner types their own name into the
+// temporary Script Property FIRST_ADMIN_NAME. It refuses when an active Admin already exists, and removes the property.
+// The new Admin still needs the Admin PIN (initAdminPin) to sign in.
+function initFirstAdmin() {
+  const name = String(Props.get('FIRST_ADMIN_NAME') || '').trim();
+  if (!name) throw new Error('Set the Script Property FIRST_ADMIN_NAME first (your own name).');
+  if (Repository.all('users').some((u) => u.role === 'Admin' && u.is_active)) {
+    throw new Error('An active Admin already exists. Nothing was changed.');
+  }
+  const now = Clock.iso();
+  Repository.transact((uow) => {
+    const row = uow.insert('users', { display_name: name, role: 'Admin' }, { userId: '', now: now });
+    AuditService.event(uow, { userId: '', hrEmployeeNo: '', requestId: 'editor', now: now },
+      { event: 'USER.CREATED', entity: 'users', entityId: row.id, detail: { role: 'Admin', source: 'initFirstAdmin' } });
+  });
+  Props.remove('FIRST_ADMIN_NAME');
+  Log.info('initFirstAdmin: the first Admin was created; FIRST_ADMIN_NAME was removed');
+}
+
+const REQUIRED_PROPERTIES =['ENV', 'TLMI_DB_ID', 'LEGACY_COPY_ID', 'REVIEW_SHEET_ID', 'PEPPER', 'ADMIN_PIN_HASH', 'ADMIN_PIN_SALT'];
 
 // Reports which Script Properties are missing, by name only.
 function checkConfig() {
