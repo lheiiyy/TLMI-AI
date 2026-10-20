@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TLMI Team Leader Monitoring</title>
+<!--STYLES-->
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<!-- Sign-in: a name from the list, and the PIN for Admin -->
+<section id="screen-signin" class="signin" hidden>
+  <h1>Sign in</h1>
+  <p class="lead">Team Leader Monitoring for the Training Department.</p>
+  <div id="signin-message" role="alert" hidden></div>
+  <form id="signin-form" novalidate>
+    <label class="field">
+      <span>Name</span>
+      <select id="signin-user" required></select>
+    </label>
+    <label class="field">
+      <span>Admin PIN</span>
+      <input id="signin-pin" type="password" autocomplete="off" inputmode="text">
+      <small>Only Admins type a PIN. Leave it empty if you are not an Admin.</small>
+    </label>
+    <button type="submit" id="signin-submit">Sign in</button>
+  </form>
+</section>
+
+<!-- Signed-in shell -->
+<div id="screen-app" hidden>
+  <header class="topbar">
+    <span class="brand">TLMI</span>
+    <span class="who" id="who"></span>
+    <button type="button" id="signout" class="secondary">Sign out</button>
+  </header>
+  <nav class="nav" aria-label="Sections"><ul id="nav"></ul></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+
+<!--VIEWS-->
+<!--SCRIPTS-->
+</body>
+</html>
