@@ -31,10 +31,15 @@ async function fresh(page, opts) {
   return problems;
 }
 
+// Fills the form and submits it, and waits until the screen has handled the answer. Without the wait, the next call
+// could fill the password before the page clears it after a failure, and the form would be submitted empty.
 async function signIn(page, who, password) {
   await page.fill('#signin-employee', NUMBERS[who]);
   await page.fill('#signin-password', password === undefined ? PASSWORD : password);
+  const answered = page.waitForResponse((r) => r.url().endsWith('/api') && (r.request().postData() || '').includes('auth.signIn'));
   await page.click('#signin-submit');
+  await answered;
+  await expect(page.locator('#signin-submit')).toBeEnabled();
 }
 
 async function signInAs(page, who) {
