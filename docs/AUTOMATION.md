@@ -210,7 +210,7 @@ from: reviewer | code | hourly
 ### 5.4 Limits that stop loops
 
 - **Build attempts:** at most 2 CI-fix pushes inside one Code run; at most 6 Code runs on one item (counted as the `Code: CLAIM` comments minus the `Code: CLAIM withdrawn` ones, so a run that lost a claim race is not counted).
-- **Review rounds:** at most 4 `READY FOR REVIEW` rounds on one pull request.
+- **Review rounds:** at most 4 `Code: READY FOR REVIEW` rounds on one pull request that Code built. For a pull request the Reviewer wrote (specs, plans, docs) the cap is 6 `Reviewer: READY FOR REVIEW` rounds (a spec or a rulebook may need more rounds than code); after that the Reviewer adds `status:blocked`, moves the baton to `agent:leo` and posts `Reviewer: BLOCKED — limit reached — DECISION REQUIRED`.
 - **Hourly repair:** re-fires a stuck item once; the second time it adds `status:blocked` and `agent:leo` with a comment.
 - On any limit: add `status:blocked`, move the baton to `agent:leo`, comment the reason as `BLOCKED — REASON — DECISION REQUIRED`, and stop.
 - The platform also caps fires at 30 an hour per task (V17).
