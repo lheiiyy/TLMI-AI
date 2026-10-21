@@ -78,7 +78,7 @@ Checked from the Reviewer's session on 2026-10-20 between 19:00 and 20:40 UTC (2
 
 | ID | Item | Options |
 | --- | --- | --- |
-| B1 | `main` cannot be protected on a private repository under GitHub Free (V1). | (a) Upgrade the account to GitHub Pro and protect `main`: pull request required, `tests` must pass, no force push, no deletion. **Recommended.** (b) Make the repository public: free protection and free minutes, but the code and business rules become public. Not recommended. (c) Keep it unprotected and add only the `main` push alarm (detection, not prevention). |
+| B1 | `main` cannot be protected on a private repository under GitHub Free (V1). | (a) Upgrade the account to GitHub Pro and protect `main`: pull request required, the `test` check must pass, no force push, no deletion. **Recommended.** (b) Make the repository public: free protection and free minutes, but the code and business rules become public. Not recommended. (c) Keep it unprotected and add only the `main` push alarm (detection, not prevention). |
 | B2 | A cloud task for Code would build and push branches as Leo's GitHub user with no person approving each step. This widens what runs without Leo. | Approve for the pilot only, then for Phase 2 building; or keep Code as today (started by Leo). |
 | B3 | Connectors are removed only in the web page of the task (V18). | Leo removes all connectors except Claude Code Remote from the Reviewer's task now, and from the Code task when it is created. |
 | B4 | Merge path. A fired run carries no word from Leo (V17), so "Leo names the pull request in the Code session" cannot work unattended. | Leo merges by clicking Merge on GitHub after `VERDICT: APPROVED` and green tests (one tap from the GitHub app). `CLAUDE.md` and `docs/COLLABORATION.md` are updated to say so; Leo or Code edits `CLAUDE.md` (the Reviewer cannot). |
@@ -87,10 +87,10 @@ Checked from the Reviewer's session on 2026-10-20 between 19:00 and 20:40 UTC (2
 
 | ID | Answer | What follows |
 | --- | --- | --- |
-| B1 | Make the repository public. | A scan before publishing (every branch, every commit, every pull request text and comment) was run and its findings were given to Leo in the session, with the options. Leo **made the repository public on 2026-10-21 (by 08:11 Manila)**; the follow-up actions from the scan are with him. Both agents now act only on issues, pull requests and comments by `lheiiyy` and never run code from other authors or forks (prompts in `docs/automation/`; the live Reviewer task was updated the same morning). Public also makes branch protection and Actions minutes free: Leo sets the protection on `main` (section 7). |
+| B1 | Make the repository public. | A scan before publishing (every branch, every commit, every pull request text and comment) was run and its findings were given to Leo in the session, with the options. Leo **made the repository public on 2026-10-21 (by 08:11 Manila)**; the follow-up actions from the scan are with him. Both agents now act only on issues, pull requests and comments by `lheiiyy` and never run code from other authors or forks (prompts in `docs/automation/`; the live Reviewer task was updated the same morning). Public also makes branch protection and Actions minutes free. **Done 08:36:** Leo activated the ruleset "Main" on the default branch: pull request required (no required approvals), status check `test` required, no force push, no deletion, no bypass (verified through the rulesets API). The follow-up actions from the scan are done. |
 | B2 | Allowed. | The fire-only Code task is created (Phase 2). |
 | B3 | No answer yet. | The Code task is not fired until its connectors are reduced to Claude Code Remote, or Leo says to go ahead without that. |
-| B4 | Merging is part of Code's automatic work. | Code merges a pull request when the Reviewer's `VERDICT: APPROVED` names its current head, `tests` is green, it is mergeable, and it carries no `merge:leo`, `needs:leo` or `status:blocked`. A pull request whose diff touches `CLAUDE.md`, `.github/`, `appsscript.json`, the permission table, the `tools/` deploy scripts or `docs/automation/` gets `merge:leo`, and Leo merges it. The rule is in `docs/COLLABORATION.md` (PR #9) and takes effect when `CLAUDE.md` says the same (pilot item P-1, merged by Leo). Approver and merger stay different parties. |
+| B4 | Merging is part of Code's automatic work. | Code merges a pull request when the Reviewer's `VERDICT: APPROVED` names its current head, the `test` check is green, it is mergeable, and it carries no `merge:leo`, `needs:leo` or `status:blocked`. A pull request whose diff touches `CLAUDE.md`, `.github/`, `appsscript.json`, the permission table, the `tools/` deploy scripts or `docs/automation/` gets `merge:leo`, and Leo merges it. The rule is in `docs/COLLABORATION.md` (PR #9) and takes effect when `CLAUDE.md` says the same (pilot item P-1, merged by Leo). Approver and merger stay different parties. |
 
 ## 3. Recommended architecture
 
@@ -120,7 +120,7 @@ Principles:
 2. **Wake, do not poll.** The agent that hands over wakes the other one with `fire_trigger`. The wake text is only a hint; the woken agent re-reads GitHub and acts only if the labels agree. Both cloud tasks start a fresh session for each wake, so a wake never waits behind a busy session (V10).
 3. **One baton per item.** Exactly one of `agent:code`, `agent:reviewer`, `agent:leo` is on an open item. Only its holder acts.
 4. **Idempotent by head commit.** Each action records the head commit it covers (`Reviewed head <sha>`, `Code: built head <sha>`). An agent that finds its action already recorded for the current head does nothing.
-5. **CI inside the run.** Code waits for the `tests` result of its own push inside the same run (about 1.5 to 9 minutes, V5), so no CI event is needed.
+5. **CI inside the run.** Code waits for the `test` check result of its own push inside the same run (about 1.5 to 9 minutes, V5), so no CI event is needed.
 6. **Repair, not speed, is hourly.** The existing hourly task finds stuck items and re-fires once. Speed comes from the wakes.
 7. **People keep the gates.** LIVE, `clasp`, secrets, access, roles and the merge of halt-path pull requests stay with Leo (section 8). Code merges the rest under the merge rule (B4).
 
@@ -244,7 +244,7 @@ So no exact 5-minute loop is available, and none is needed: a hand-off reaches t
 - `GITHUB_TOKEN` in workflows stays `contents: read`.
 - `clasp` credentials, Script Properties, sheet IDs and the Admin PIN never enter a cloud task. `clasp` runs only in Leo's own session, to DEV and TEST.
 
-**Branch protection (B1).** Now that the repository is public (free), Leo protects `main` (Settings, Branches, add a rule for `main`) with "require a pull request before merging" (no required approvals: every party is the same user), "require status checks to pass" with `tests`, "do not allow bypassing the above settings" (otherwise the agents, as the same admin user, could bypass it), no force pushes and no deletions. Before that, the plan was GitHub Pro for the private repository, with "require a pull request", "require status check `tests`", "block force pushes" and "restrict deletions". Until then, three layers apply: the instruction in every prompt, the platform guards (V13), and the `main` push alarm below.
+**Branch protection (B1).** Now that the repository is public (free), Leo protects `main` (Settings, Branches, add a rule for `main`) with "require a pull request before merging" (no required approvals: every party is the same user), "require status checks to pass" with `test`, "do not allow bypassing the above settings" (otherwise the agents, as the same admin user, could bypass it), no force pushes and no deletions. Before that, the plan was GitHub Pro for the private repository, with "require a pull request", "require status check `test`", "block force pushes" and "restrict deletions". Until then, three layers apply: the instruction in every prompt, the platform guards (V13), and the `main` push alarm below.
 
 **CI guard step (to be built by Code in Phase 3, reviewed by the Reviewer, merged by Leo).** Added to the `tests` job, so no extra job minutes:
 
@@ -262,7 +262,7 @@ So no exact 5-minute loop is available, and none is needed: a hand-off reaches t
 
 | Runs on its own | Halts for Leo (`needs:leo`, `merge:leo` or `agent:leo`) |
 | --- | --- |
-| Code merging a pull request under the merge rule (B4): `VERDICT: APPROVED` for its head, `tests` green, mergeable, no `merge:leo`, `needs:leo` or `status:blocked` | Merging a pull request that touches `CLAUDE.md`, `.github/`, `appsscript.json`, the permission table, the `tools/` deploy scripts or `docs/automation/` (`merge:leo`) |
+| Code merging a pull request under the merge rule (B4): `VERDICT: APPROVED` for its head, the `test` check green, mergeable, no `merge:leo`, `needs:leo` or `status:blocked` | Merging a pull request that touches `CLAUDE.md`, `.github/`, `appsscript.json`, the permission table, the `tools/` deploy scripts or `docs/automation/` (`merge:leo`) |
 | Creating, labelling and commenting on issues | A merge the platform refuses (`Code: BLOCKED — merge refused`) |
 | Branches, commits and pushes to feature and docs branches | Pushing to `main`; force push; deleting a branch that is not merged |
 | Opening and updating pull requests | Anything on LIVE; `clasp` push (Leo's session only, DEV and TEST); Script Properties |
