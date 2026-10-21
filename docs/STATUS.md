@@ -16,13 +16,13 @@
 - Phase 1 pull request A merged (#4, merge commit 56736d1): test harness, platform adapters, validator, schema, repository, audit service.
 - Phase 1 pull request B merged (#5, merge commit c1e8cce): API entry, interim sign-in, permission table, master data, settings, users.
 - Phase 1 pull request C merged (#6, merge commit f1d54b1): seed, import rules, import review dry run.
-- Phase 1 pull request D (tasks 11 to 14: setup functions, dev server and sign-in, home and Admin screens, deploy tool, setup guide, G1 checklist, CI) built on branch `feat/phase1-d-ui-tooling`, in review.
+- Phase 1 pull request D merged (#7, merge commit ec4753a): setup functions with the editor guard, dev server and sign-in, home and Admin screens, deploy tool, setup guide, G1 checklist, CI. All four Phase 1 pull requests (#4 to #7) are merged; the reviewer approved each one.
 - Spreadsheets created by the reviewer in one Drive folder, "TLMI-AI": a dated copy of the legacy sheet with a `SEED_OFFICERS` tab, `TLMI_DB_DEV`, `TLMI_DB_TEST`, `TLMI_IMPORT_REVIEW_TEST`. IDs are not in the repo; Leo puts them in Script Properties.
 
 ## Next
 
-- Reviewer checks pull request D. After it is merged, Leo does the one-time setup in [docs/SETUP.md](SETUP.md) and the gate G1 checks in [docs/G1-CHECKLIST.md](G1-CHECKLIST.md) on TEST.
-- The reviewer checks each pull request on GitHub.
+- Leo does the one-time setup on DEV and TEST in [docs/SETUP.md](SETUP.md) and runs the gate G1 checks in [docs/G1-CHECKLIST.md](G1-CHECKLIST.md). Phase 1 is complete in code; gate G1 is closed only after those checks, and after the timing from `measureHash` and the number format `0.######` have been looked at on TEST.
+- Phase 2 (enrollment and certification) starts only after gate G1 and the Phase 2 spec. It begins with password sign-in (exception X-1) and the throttling of anonymous sign-in calls ("Open for Phase 2" in [docs/DECISIONS.md](DECISIONS.md)). Not started.
 - Settle the extension limit (CFG-047) and the probation start in TDMS before gate G2.
 
 ## Blockers and open items
