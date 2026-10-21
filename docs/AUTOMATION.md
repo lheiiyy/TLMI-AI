@@ -2,6 +2,8 @@
 
 **Status:** written by the Reviewer on 2026-10-21. Leo answered B1 to B4 the same day (section 2.5). Switched on so far: the labels, the kill-switch issue (#11), the ruleset on `main`, and the public-repository rules in both prompts. Not switched on: the cloud task for Code, Code waking the Reviewer, the CI guard step and the `main` push alarm. Until a cloud task for Code exists, Code works in Leo's own Code session and both agents look at GitHub about every 20 minutes (section 3, "Until then").
 
+**Update 2026-10-21 (17:25 Manila):** Leo deleted both cloud tasks he had allowed (the Reviewer's hourly task and the pilot Code task). No cloud task exists now, and none is recreated unless Leo asks. Code works only in Leo's own Code session (started by Leo, with `/loop 20m` to look at GitHub); the Reviewer works in its live session. Nothing wakes the other side: the baton labels and the 20-minute checks are the hand-off, as in section 3, "Until then". The prompts in `docs/automation/` stay as the text to use if Leo asks for a cloud task again. Sections 5 to 11 describe the design and the pilot as they were when written.
+
 **Question asked by Leo (2026-10-21):** can Cowork (the Reviewer) and Claude Code (Code) hand work to each other through GitHub without Leo relaying messages, with a reconciliation check about every 5 minutes, while Leo keeps the business, security and LIVE decisions?
 
 **Short answer:** yes for the hand-offs, but not with a 5-minute poll. The reliable design is event-driven: each agent wakes the other directly when it hands over, GitHub holds all state, and one hourly check repairs anything that got stuck. A 5-minute poll is either session-bound, best-effort or over the free GitHub Actions budget (section 6).
