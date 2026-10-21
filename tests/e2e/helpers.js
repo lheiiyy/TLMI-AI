@@ -24,8 +24,18 @@ async function fresh(page, opts) {
   page.on('response', (r) => { if (r.status() >= 400) problems.requests.push(r.url() + ' ' + r.status()); });
   await page.request.post('/__reset');
   if (opts && opts.width) await page.setViewportSize({ width: opts.width, height: 900 });
+  // opts.delayList (ms) holds back the answer to the name list, to prove that a test does not rely on it being fast.
+  if (opts && opts.delayList) {
+    await page.route('**/api', async (route) => {
+      const body = route.request().postData() || '';
+      if (body.includes('auth.listSignInUsers')) await new Promise((resolve) => setTimeout(resolve, opts.delayList));
+      await route.continue();
+    });
+  }
   await page.goto('/');
   await expect(page.locator('#signin-user')).toBeVisible();
+  // The select is shown first and filled when the name list arrives: wait for the names, not only for the select.
+  await expect(page.locator('#signin-user option')).not.toHaveCount(1);
   return problems;
 }
 
