@@ -35,7 +35,7 @@ Added 2026-10-21 on Leo's word ("dun kayo mag usap sa GitHub"). Code and the Rev
 Leo, 2026-10-21 (answer B4 in [docs/AUTOMATION.md](AUTOMATION.md)): **merging is part of Code's automatic work.** Code merges a pull request, without Leo naming it, when all of these hold:
 
 1. The Reviewer's latest comment on it is `VERDICT: APPROVED` with `Reviewed head <the current head commit>`.
-2. The `tests` check is green on that head.
+2. The `test` check (job of the `tests` workflow, required by the `main` ruleset) is green on that head.
 3. GitHub reports it mergeable (no conflict).
 4. It carries none of the labels `merge:leo`, `needs:leo` or `status:blocked`.
 5. Its diff touches none of the halt paths: `CLAUDE.md`, `.github/`, `appsscript.json`, the permission table, the `tools/` deploy scripts, `docs/automation/` (the agents' prompts). Such a pull request gets `merge:leo`, and Leo merges it himself on GitHub.
