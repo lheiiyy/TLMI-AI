@@ -10,6 +10,8 @@
 
 **Spec:** [specs/2026-10-21-phase-2-enrollment-certification-design.md](../specs/2026-10-21-phase-2-enrollment-certification-design.md)
 
+**Approval:** Leo could not read this plan and said on 2026-10-21 (09:11 Manila) that the Reviewer decides ("ikaw mag-decide"). The Reviewer therefore approves it in Leo's place (docs/COLLABORATION.md, "Decision rights"), effective when the pull request that carries it is merged; the record is the `Reviewer: DECISION` comment on that pull request. A change of the plan after that goes through a pull request comment first, as before.
+
 ## Global Constraints
 
 - Only `Repository.gs` calls `SpreadsheetApp`. Only `Platform.gs` calls `PropertiesService`, `CacheService`, `LockService`, `Utilities`, `Session` and `new Date`.
