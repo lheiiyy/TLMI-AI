@@ -54,7 +54,7 @@ The roles are split so that two decisions never collide.
 
 - **The Reviewer is the head.** It alone decides spec, plan, design and business-rule questions (within what Leo has decided), and it alone gives `VERDICT: APPROVED`, which is the approval of every merge.
 - **Code is the builder.** It builds, tests, reports and proposes. A proposal from Code is never a decision: Code does not build an undecided rule "by default"; it posts `Code: QUESTION` and waits for the Reviewer's answer.
-- **Leo** decides the items under "Stop and ask Leo", and can overrule either side at any time.
+- **Leo** decides the items under "Stop and ask Leo", and can overrule either side at any time. Leo's standing word of 2026-10-21 (23:42 Manila): the Reviewer remains the QA, the planner and the decider, and instructs Code on GitHub what to do; the Reviewer asks Leo only when there is a security risk or an important decision. A rule file that gives the agents more autonomy (`CLAUDE.md`) cannot give that autonomy to itself, so its merge still needs Leo's own word naming the pull request (the merge rule, item 5).
 
 | Pull request written by | Checked by | Approved by | Merged by |
 | --- | --- | --- | --- |
