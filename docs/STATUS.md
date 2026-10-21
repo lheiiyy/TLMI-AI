@@ -1,7 +1,7 @@
 # STATUS
 
 **Phase:** 1, core data, sign-in and audit log (gate G1). Phase 0 gate G0 (rules signed off) is passed.
-**Last updated:** 2026-10-20
+**Last updated:** 2026-10-21
 
 ## Done
 
@@ -17,6 +17,7 @@
 - Phase 1 pull request B merged (#5, merge commit c1e8cce): API entry, interim sign-in, permission table, master data, settings, users.
 - Phase 1 pull request C merged (#6, merge commit f1d54b1): seed, import rules, import review dry run.
 - Phase 1 pull request D merged (#7, merge commit ec4753a): setup functions with the editor guard, dev server and sign-in, home and Admin screens, deploy tool, setup guide, G1 checklist, CI. All four Phase 1 pull requests (#4 to #7) are merged; the reviewer approved each one.
+- STATUS pull request merged (#8, merge commit 78ab694). Browser test stability (issue #13): the sign-in screen showed its name list empty for a moment, and the test `lists active officers` read it too early; `fresh()` now waits for the names, and a test with a slow list keeps it from coming back.
 - Spreadsheets created by the reviewer in one Drive folder, "TLMI-AI": a dated copy of the legacy sheet with a `SEED_OFFICERS` tab, `TLMI_DB_DEV`, `TLMI_DB_TEST`, `TLMI_IMPORT_REVIEW_TEST`. IDs are not in the repo; Leo puts them in Script Properties.
 - Phase 2 spec, build plan and working agreement merged (#9, merge commit b4fbf88; the Reviewer's DECISION approves the build plan in Leo's place). Automation audit and the two task prompts merged (#10, merge commit 45ae807, on Leo's word). STATUS pull request merged (#8, merge commit 78ab694). `CLAUDE.md` follows the new merge rule (issue #12).
 

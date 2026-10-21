@@ -13,6 +13,12 @@ test('lists active officers', async ({ page }) => {
   expect(names.join(' ')).not.toMatch(/Admin PIN|9101|USR-/);
 });
 
+test('lists active officers even when the name list is slow', async ({ page }) => {
+  await fresh(page, { delayList: 600 });
+  const names = await page.locator('#signin-user option').allTextContents();
+  expect(names).toContain(NAMES.officer);
+});
+
 test('officer signs in without a PIN', async ({ page }) => {
   const problems = await fresh(page);
   await signIn(page, 'officer');
