@@ -53,7 +53,8 @@ const AuditService = (function () {
   // One record_history row for each field that differs. Tracked: every field of the table, and is_active.
   function changes(uow, ctx, entity, entityId, before, after) {
     const def = Schema.table(entity);
-    const tracked = Object.keys(def.fields).concat(def.profile === 'MUT' ? ['is_active'] : []);
+    // Fields marked noHistory (counters and last-seen times) would only fill the history with noise.
+    const tracked = Object.keys(def.fields).filter((f) => !def.fields[f].noHistory).concat(def.profile === 'MUT' ? ['is_active'] : []);
     const rows = [];
     tracked.forEach((f) => {
       if (text(before[f]) === text(after[f])) return;

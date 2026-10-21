@@ -70,11 +70,15 @@ const Schema = (function () {
     users: {
       idPrefix: 'USR-', idWidth: 4, profile: 'MUT', history: 'F',
       fields: {
-        hr_employee_no: { type: 'text', max: 20, unique: [] },
+        hr_employee_no: { type: 'text', max: 20, unique: [], pattern: /^\d{1,20}$/, patternMessage: 'Digits only.' },
         display_name: { type: 'text', required: true, max: 150 },
         role: { type: 'text', required: true, enum: ROLES },
         password_hash: { type: 'text', max: 200 },
         salt: { type: 'text', max: 200 },
+        must_change_password: { type: 'bool' },
+        failed_attempts: { type: 'int', noHistory: true },
+        cooldown_until: { type: 'timestamp', noHistory: true },
+        last_login_at: { type: 'timestamp', noHistory: true },
       },
     },
     audit_log: {
