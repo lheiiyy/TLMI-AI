@@ -18,6 +18,7 @@
 - Phase 1 pull request C merged (#6, merge commit f1d54b1): seed, import rules, import review dry run.
 - Phase 1 pull request D merged (#7, merge commit ec4753a): setup functions with the editor guard, dev server and sign-in, home and Admin screens, deploy tool, setup guide, G1 checklist, CI. All four Phase 1 pull requests (#4 to #7) are merged; the reviewer approved each one.
 - Spreadsheets created by the reviewer in one Drive folder, "TLMI-AI": a dated copy of the legacy sheet with a `SEED_OFFICERS` tab, `TLMI_DB_DEV`, `TLMI_DB_TEST`, `TLMI_IMPORT_REVIEW_TEST`. IDs are not in the repo; Leo puts them in Script Properties.
+- Phase 2 spec, build plan and working agreement merged (#9, merge commit b4fbf88; the Reviewer's DECISION approves the build plan in Leo's place). Automation audit and the two task prompts merged (#10, merge commit 45ae807, on Leo's word). STATUS pull request merged (#8, merge commit 78ab694). `CLAUDE.md` follows the new merge rule (issue #12).
 
 ## Next
 
