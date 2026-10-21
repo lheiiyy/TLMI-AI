@@ -6,14 +6,17 @@ const { fillTab } = require('../tests/helpers/sheets');
 const legacy = require('../tests/fixtures/legacy-copy');
 const master = require('../tests/fixtures/master-log');
 
-// Test code only. This PIN protects an in-memory fake and nothing else.
-const TEST_ADMIN_PIN = 'TEST-ONLY-PIN-1';
+// Test code only. This invented password protects an in-memory fake and nothing else.
+const TEST_PASSWORD = 'TEST-ONLY-Pass-1';
+const TEST_ADMIN_NO = '9105';
+// name, role, employee number, must change the password at the first sign-in
 const USERS = [
-  ['Olivia Tester', 'Training Officer', '9101'],
-  ['Sam Supervisor', 'Training Supervisor', '9102'],
-  ['Mia Manager', 'Training Manager', '9103'],
-  ['Sean Senior', 'Senior Training Manager', '9104'],
-  ['Ada Admin', 'Admin', '9105'],
+  ['Olivia Tester', 'Training Officer', '9101', false],
+  ['Sam Supervisor', 'Training Supervisor', '9102', false],
+  ['Mia Manager', 'Training Manager', '9103', false],
+  ['Sean Senior', 'Senior Training Manager', '9104', false],
+  ['Ada Admin', 'Admin', TEST_ADMIN_NO, false],
+  ['Tina Temporary', 'Training Officer', '9106', true],
 ];
 
 function createEnv() {
@@ -32,21 +35,25 @@ function createEnv() {
   P.set('LEGACY_COPY_ID', legacy.LEGACY_ID);
   P.set('REVIEW_SHEET_ID', 'dev-review');
 
-  // What the owner does once, in the editor: setup, initSecrets, initAdminPin.
+  // What the owner does once, in the editor: setup, initSecrets.
   g('setup')();
   g('initSecrets')();
-  P.set('ADMIN_PIN_NEW', TEST_ADMIN_PIN);
-  g('initAdminPin')();
 
-  // One invented user per role, as the owner would add the first Admin.
+  // One invented user per role, with the test password (the low iteration count keeps the dev server quick).
+  const H = g('Hasher');
+  H.DEFAULT_ITERATIONS = 1000;
   g('Repository').transact((uow) => {
-    USERS.forEach(([name, role, no]) => uow.insert('users', { display_name: name, role: role, hr_employee_no: no }, { userId: 'USR-0000', now: '2026-10-20T04:00:00.000Z' }));
+    USERS.forEach(([name, role, no, must]) => {
+      const salt = H.newSalt();
+      uow.insert('users', {
+        display_name: name, role: role, hr_employee_no: no, password_hash: H.hash(TEST_PASSWORD, salt, P.get('PEPPER')), salt: salt, must_change_password: must,
+      }, { userId: 'USR-0000', now: '2026-10-20T04:00:00.000Z' });
+    });
   });
 
   env.handle = (request) => env.plain(g('tlmiApi')(request));
   // The seed, through the API as Admin.
-  const adminId = env.plain(g('Repository').all('users')).find((u) => u.role === 'Admin').id;
-  const signIn = env.handle({ v: 1, method: 'auth.signIn', params: { user_id: adminId, pin: TEST_ADMIN_PIN } });
+  const signIn = env.handle({ v: 1, method: 'auth.signIn', params: { employee_id: TEST_ADMIN_NO, password: TEST_PASSWORD } });
   if (!signIn.ok) throw new Error('dev environment: Admin sign-in failed');
   const seeded = env.handle({ v: 1, method: 'seed.run', params: {}, token: signIn.data.token });
   if (!seeded.ok) throw new Error('dev environment: seed failed: ' + JSON.stringify(seeded.error));
@@ -54,4 +61,4 @@ function createEnv() {
   return env;
 }
 
-module.exports = { createEnv, TEST_ADMIN_PIN, USERS };
+module.exports = { createEnv, TEST_PASSWORD, TEST_ADMIN_NO, USERS };

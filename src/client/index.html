@@ -9,22 +9,49 @@
 <body>
 <a class="skip" href="#main">Skip to the content</a>
 
-<!-- Sign-in: a name from the list, and the PIN for Admin -->
+<!-- Sign-in: employee ID and password -->
 <section id="screen-signin" class="signin" hidden>
   <h1>Sign in</h1>
   <p class="lead">Team Leader Monitoring for the Training Department.</p>
   <div id="signin-message" role="alert" hidden></div>
   <form id="signin-form" novalidate>
     <label class="field">
-      <span>Name</span>
-      <select id="signin-user" required></select>
+      <span>Employee ID</span>
+      <input id="signin-employee" type="text" inputmode="numeric" autocomplete="username" autocapitalize="off" required>
     </label>
     <label class="field">
-      <span>Admin PIN</span>
-      <input id="signin-pin" type="password" autocomplete="off" inputmode="text">
-      <small>Only Admins type a PIN. Leave it empty if you are not an Admin.</small>
+      <span>Password</span>
+      <input id="signin-password" type="password" autocomplete="current-password" required>
+      <small>Forgot your password? Ask an Admin to reset it.</small>
     </label>
     <button type="submit" id="signin-submit">Sign in</button>
+  </form>
+</section>
+
+<!-- Change password: forced after a temporary password, and from the top bar at any time -->
+<section id="screen-password" class="signin" hidden>
+  <h1>Change password</h1>
+  <p class="lead" id="pw-lead"></p>
+  <div id="pw-message" role="alert" hidden></div>
+  <form id="pw-form" novalidate>
+    <label class="field">
+      <span>Current password</span>
+      <input id="pw-current" type="password" autocomplete="current-password" required>
+    </label>
+    <label class="field">
+      <span>New password</span>
+      <input id="pw-new" type="password" autocomplete="new-password" required>
+      <small>At least 8 characters, with at least one letter and one digit, and different from the current password.</small>
+    </label>
+    <label class="field">
+      <span>Repeat the new password</span>
+      <input id="pw-repeat" type="password" autocomplete="new-password" required>
+    </label>
+    <div class="actions">
+      <button type="submit" id="pw-submit">Change password</button>
+      <button type="button" id="pw-cancel" class="secondary" hidden>Cancel</button>
+      <button type="button" id="pw-signout" class="secondary">Sign out</button>
+    </div>
   </form>
 </section>
 
@@ -33,6 +60,7 @@
   <header class="topbar">
     <span class="brand">TLMI</span>
     <span class="who" id="who"></span>
+    <button type="button" id="change-password" class="secondary">Change password</button>
     <button type="button" id="signout" class="secondary">Sign out</button>
   </header>
   <nav class="nav" aria-label="Sections"><ul id="nav"></ul></nav>

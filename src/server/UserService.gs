@@ -14,6 +14,7 @@ const UserService = (function () {
     delete c.cooldown_until;
     c.paused = !!u.cooldown_until && Clock.parse(u.cooldown_until) > Clock.ms();
     c.must_change_password = u.must_change_password === true;
+    c.has_password = !!u.password_hash;
     return c;
   }
 
