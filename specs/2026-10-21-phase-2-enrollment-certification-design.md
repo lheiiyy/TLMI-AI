@@ -238,10 +238,11 @@ A record is overdue when it is in an open state and its deadline is before today
 
 All Team Leader screens are open to O S M Sr A; buttons follow `allowed_actions`, and the server decides.
 
-- **Team Leaders** (menu): filters (status, store, station, batch, open only, overdue only), a search box, the paged list with the deadline and an Overdue tag, and an Enroll button (O S M Sr).
-- **Enroll**: search for an existing person, or type a new person's names; the store, support store, station, batch and entry date; the computed deadline is shown before saving. Possible duplicates are shown with a "This is a different person" confirmation.
+- **Team Leaders** (menu): filters (status, store, station, batch, open only, overdue only), a search box, the paged list with the deadline and an Overdue tag, and an Enroll button (O S M Sr A, as the permission table allows `tl.enroll`).
+- **Enroll**: search for an existing person, or type a new person's names; the store, support store, station, batch and entry date. The server calculates the deadline when the record is saved, and the record then shows it; the form says so. The browser never computes a deadline, and no method returns a preview (a preview method would be a new permission). Possible duplicates are shown with a "This is a different person" confirmation.
 - **Team Leader record**: a header (name, status, store, station, batch, entry date, deadline with days left or Overdue, final grade and pass mark); Entry grades (each component, score, date, recorded by, Record or Correct); the TL course program grade; Certification checks (each attempt with its scores, final, officers and visit report link); Extensions; Actions for the current state; a History tab.
-- Every action asks for its fields in a small form and shows the server's message on refusal ("Changed by X, reload" on `CONFLICT`).
+- Every action asks for its fields in a small form and shows the server's message on refusal ("Changed by X, reload" on `CONFLICT`). The certification check form records the signed-in user as the one certifying officer (the server accepts 1 to 5). A picker for several officers needs a read method for officers that a non-Admin may call; that is a permission change, so it is not part of Phase 2 unless Leo asks for it.
+- Decided by the Reviewer on pull request #30 (2026-10-22): the deadline is shown after saving, Enroll is open to O S M Sr A, and the single certifying officer is the signed-in user.
 - Text from the server is set with `textContent` only. Client code for these screens goes in `src/client/tl.js`; `tools/assemble.js` inlines every `src/client/*.js` file, `api.js` first, then `app.js`, then the others in name order.
 
 ## 9. Persons and duplicates
