@@ -2,17 +2,20 @@
 const SettingsService = (function () {
   const CACHE_TTL = 60;
 
-  // Keys are the TDMS configuration IDs. CFG-047 (extension limit) is deliberately not defined: it stays unset until Admin
-  // decides, and SettingsService.require('CFG-047') returns CONFIG_MISSING until then (RULE-104).
+  // Keys are the TDMS configuration IDs, and TLMI-001 (the TL course program pass mark; TDMS has no key for it). CFG-047
+  // (extension limit) is defined so that Admin can set it, but it is not seeded: it stays unset until Admin decides, and
+  // SettingsService.require('CFG-047') returns CONFIG_MISSING until then (RULE-104).
   const SETTING_DEFS = {
     'CFG-001': { label: 'Idle sign-out (minutes)', group: 'Sign-in', value_type: 'int', min: 1, max: 240 },
-    'CFG-002': { label: 'Wrong PIN tries before a pause', group: 'Sign-in', value_type: 'int', min: 1, max: 20 },
+    'CFG-002': { label: 'Wrong passwords before a pause', group: 'Sign-in', value_type: 'int', min: 1, max: 20 },
     'CFG-003': { label: 'Pause length (minutes)', group: 'Sign-in', value_type: 'int', min: 1, max: 1440 },
     'CFG-040': { label: 'Probation period (months)', group: 'Team Leader', value_type: 'int', min: 1, max: 12 },
     'CFG-041': { label: 'Certification pass mark', group: 'Team Leader', value_type: 'int', min: 1, max: 100 },
     'CFG-042': { label: 'Extension length (days)', group: 'Team Leader', value_type: 'int', min: 1, max: 365 },
     'CFG-044': { label: 'Certification weights: checklist / exam / feedback', group: 'Team Leader', value_type: 'intset', parts: 3 },
     'CFG-045': { label: 'Feedback weights: kitchen / manager', group: 'Team Leader', value_type: 'intset', parts: 2 },
+    'CFG-047': { label: 'Extension limit (number of extensions)', group: 'Team Leader', value_type: 'int', min: 1, max: 10 },
+    'TLMI-001': { label: 'TL course program pass mark', group: 'Team Leader', value_type: 'int', min: 1, max: 100 },
   };
 
   function versions(key) {

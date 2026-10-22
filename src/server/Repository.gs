@@ -132,14 +132,15 @@ const Repository = (function () {
       return Schema.formatId(name, n, y);
     }
 
-    _add(name, values, actor) {
+    // year: for a table whose IDs carry a year (TLE-2026-0001), the year of the record's own date; default the current year.
+    _add(name, values, actor, year) {
       const def = Schema.table(name);
       const state = this._state(name);
       const v = Validator.clean(Schema.inputDef(def), values, 'create');
       checkUnique(state, v, null, false);
       const now = (actor && actor.now) || Clock.iso();
       const who = (actor && actor.userId) || '';
-      const obj = { id: this.nextId(name) };
+      const obj = { id: this.nextId(name, year) };
       Object.keys(def.fields).forEach((f) => {
         obj[f] = v[f] !== undefined ? v[f] : emptyValue(def.fields[f].type);
       });
@@ -156,16 +157,16 @@ const Repository = (function () {
       return clone(obj);
     }
 
-    insert(name, values, actor) {
+    insert(name, values, actor, year) {
       const def = Schema.table(name);
       if (def.profile === 'SYS' || def.profile === 'APP') throw fail('insert() is not for ' + def.profile + ' tables: ' + name);
-      return this._add(name, values, actor);
+      return this._add(name, values, actor, year);
     }
 
-    append(name, values, actor) {
+    append(name, values, actor, year) {
       const def = Schema.table(name);
       if (def.profile !== 'APP') throw fail('append() is only for append-only tables: ' + name);
-      return this._add(name, values, actor);
+      return this._add(name, values, actor, year);
     }
 
     update(name, id, patch, opts) {

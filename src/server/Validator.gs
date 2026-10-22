@@ -54,10 +54,21 @@ const Validator = {
       }
       case 'object':
         return (v !== null && typeof v === 'object' && !Array.isArray(v)) ? { value: v } : { err: 'TYPE', msg: 'An object is expected.' };
-      case 'int':
-        return Number.isInteger(v) ? { value: v } : { err: 'TYPE', msg: 'A whole number is expected.' };
-      case 'number':
-        return (typeof v === 'number' && isFinite(v)) ? { value: v } : { err: 'TYPE', msg: 'A number is expected.' };
+      case 'int': {
+        if (!Number.isInteger(v)) return { err: 'TYPE', msg: 'A whole number is expected.' };
+        const r = Validator._range(spec, v);
+        return r || { value: v };
+      }
+      case 'number': {
+        if (!(typeof v === 'number' && isFinite(v))) return { err: 'TYPE', msg: 'A number is expected.' };
+        const r = Validator._range(spec, v);
+        if (r) return r;
+        // At most spec.decimals decimal places (a grade has two). The product is rounded first to remove binary noise.
+        if (spec.decimals !== undefined && Math.abs(Math.round(Number((v * Math.pow(10, spec.decimals)).toPrecision(12))) - Number((v * Math.pow(10, spec.decimals)).toPrecision(12))) > 1e-9) {
+          return { err: 'DECIMALS', msg: 'At most ' + spec.decimals + ' decimal places.' };
+        }
+        return { value: v };
+      }
       case 'bool':
         return typeof v === 'boolean' ? { value: v } : { err: 'TYPE', msg: 'true or false is expected.' };
       case 'date':
@@ -68,6 +79,13 @@ const Validator = {
       default:
         return { err: 'TYPE', msg: 'Unsupported field type.' };
     }
+  },
+
+  // spec.min and spec.max are inclusive limits for a number or a whole number.
+  _range(spec, v) {
+    if (spec.min !== undefined && v < spec.min) return { err: 'RANGE', msg: 'Must be ' + spec.min + ' or more.' };
+    if (spec.max !== undefined && v > spec.max) return { err: 'RANGE', msg: 'Must be ' + spec.max + ' or less.' };
+    return null;
   },
 
   _isDate(s) {

@@ -26,7 +26,7 @@ test('settings.set inserts version 2 and keeps version 1', () => {
   assert.equal(rows[1].effective_from, '2026-10-20');
   assert.equal(rows[1].created_by, env.users.admin.id);
   const list = env.call('settings.list', {}, t).data;
-  assert.equal(list.length, 8);
+  assert.equal(list.length, 10);
   assert.equal(list.find((s) => s.setting_key === 'CFG-041').value, '80');
   assert.equal(list.find((s) => s.setting_key === 'CFG-040').value, null);
 });
@@ -60,8 +60,14 @@ test('integer settings are range checked and unknown keys are refused', () => {
   assert.equal(set(env, t, 'CFG-041', '101').error.code, 'VALIDATION');
   assert.equal(set(env, t, 'CFG-041', '8.5').error.code, 'VALIDATION');
   assert.equal(set(env, t, 'CFG-001', '241').error.code, 'VALIDATION');
-  assert.equal(set(env, t, 'CFG-047', '3').error.fields[0].path, 'setting_key');
-  assert.equal(env.call('settings.get', { setting_key: 'CFG-047' }, t).error.code, 'VALIDATION');
+  assert.equal(set(env, t, 'CFG-999', '3').error.fields[0].path, 'setting_key');
+  assert.equal(env.call('settings.get', { setting_key: 'CFG-999' }, t).error.code, 'VALIDATION');
+  // CFG-047 and TLMI-001 are defined, so Admin can set them (and they are range checked)
+  assert.equal(set(env, t, 'CFG-047', '0').error.code, 'VALIDATION');
+  assert.equal(set(env, t, 'CFG-047', '11').error.code, 'VALIDATION');
+  assert.equal(set(env, t, 'CFG-047', '3').ok, true);
+  assert.equal(set(env, t, 'TLMI-001', '101').error.code, 'VALIDATION');
+  assert.equal(set(env, t, 'TLMI-001', '88').ok, true);
 });
 
 test('a stale supersedes_id is CONFLICT', () => {

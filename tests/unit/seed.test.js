@@ -35,22 +35,22 @@ test('seed creates the master lists', () => {
   assert.equal(lk.find((l) => l.value === 'Commissary').is_system, false);
   assert.deepEqual(lk.filter((l) => l.category === 'tl_close_reason').map((l) => l.value), ['Disqualified']);
   const cmp = env.rows('assessment_components');
-  assert.equal(cmp.length, 9);
+  assert.equal(cmp.length, 10);
   assert.deepEqual(cmp.filter((c) => c.stage === 'entry').map((c) => c.name),
     ['ISTV', 'Tech Val Food Prep', 'Tech Val Pizza Maker', 'TL entry exam Food Prep', 'TL entry exam Pizza Maker']);
   assert.ok(cmp.filter((c) => c.stage === 'entry').every((c) => c.required));
   assert.deepEqual(cmp.filter((c) => c.stage === 'certification').map((c) => [c.name, c.required]),
-    [['Checklist', true], ['Exam', true], ['Kitchen feedback', false], ['Manager feedback', false]]);
+    [['Checklist', true], ['Exam', true], ['Kitchen feedback', false], ['Manager feedback', false], ['TL course program', true]]);
   assert.ok(cmp.every((c) => c.weight === null));
   const st = Object.fromEntries(env.rows('settings').map((s) => [s.setting_key, s.value]));
-  assert.deepEqual(st, { 'CFG-001': '30', 'CFG-002': '5', 'CFG-003': '15', 'CFG-040': '3', 'CFG-041': '85', 'CFG-042': '30', 'CFG-044': '30/40/30', 'CFG-045': '60/40' });
+  assert.deepEqual(st, { 'CFG-001': '30', 'CFG-002': '5', 'CFG-003': '15', 'CFG-040': '3', 'CFG-041': '85', 'CFG-042': '30', 'CFG-044': '30/40/30', 'CFG-045': '60/40', 'TLMI-001': '90' });
   assert.ok(env.rows('settings').every((s) => s.version === 1 && s.effective_from === '2026-10-20' && s.reason === 'Initial seed'));
   const locs = env.rows('locations');
   assert.deepEqual(locs.map((l) => l.name), ['TEST STORE ONE', 'DOÑA TEST', 'SECOND TEST STORE', 'PROVINCIAL TEST']);
   assert.ok(locs.every((l) => l.location_type === 'Store' && l.brand_id === 'BRD-0001' && l.region_id));
   assert.equal(d.created.brands, 1);
   assert.equal(d.created.locations, 4);
-  assert.equal(d.created.settings, 8);
+  assert.equal(d.created.settings, 9);
 });
 
 test('seeded settings are visible through settings.get and apply', () => {
