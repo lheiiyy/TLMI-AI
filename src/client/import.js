@@ -24,7 +24,7 @@
     ENTRY_AVERAGE_DIFFERS: 'The legacy entry average differs from the computed one',
     DECISION_FLAGGED: 'A decision was marked for another look',
     CERT_GRADE_NO_DATE: 'A certification grade has no date',
-    GRADE_ROUNDED: 'A grade was rounded to a whole number',
+    GRADE_ROUNDED: 'A grade with more than 2 decimals was rounded half up',
   };
   const word = (code) => ISSUE_WORDS[code] || 'Problem code ' + code;
   const resultWord = (r) => RESULT_WORDS[r] || r;
@@ -112,6 +112,15 @@
       reason.focus();
     }
 
+    function problemCell(r) {
+      const parts = [];
+      const probs = r.issues.map((i) => word(i.code)).join('; ');
+      if (probs) parts.push(h('div', {}, probs));
+      if (r.skip_reason) parts.push(h('div', {}, 'Skipped: ' + r.skip_reason));
+      (r.warnings || []).forEach((w) => parts.push(h('div', { class: 'row-note', 'data-note': w.code }, 'Note: ' + word(w.code))));
+      return h('div', {}, parts);
+    }
+
     async function loadRows() {
       if (!state.batch) return;
       const params = { import_id: state.batch.id, page: state.page, page_size: PAGE_SIZE };
@@ -127,7 +136,7 @@
         { label: 'Entry date', key: 'entry_date' },
         { label: 'Legacy result', key: 'legacy_result' },
         { label: 'Result', value: (r) => resultWord(r.result) },
-        { label: 'Problems', value: (r) => r.issues.map((i) => word(i.code)).join('; ') + (r.skip_reason ? 'Skipped: ' + r.skip_reason : '') },
+        { label: 'Problems and notes', value: problemCell },
         { actions: (r) => ((r.result === 'READY' || r.result === 'NOT_READY') && state.batch.status === 'Validated'
           ? h('button', { type: 'button', class: 'secondary', 'data-skip': r.source_row, onclick: () => skipForm(r) }, 'Skip') : null) },
       ], rows, 'No rows match.'));
