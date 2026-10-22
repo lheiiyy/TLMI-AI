@@ -29,7 +29,7 @@ test('every top-level function is doGet, tlmiApi, or starts with EditorGuard.che
   }
   const names = found.map((x) => x.name).sort();
   assert.ok(names.includes('doGet') && names.includes('tlmiApi'));
-  for (const fn of ['setup', 'initSecrets', 'initAdminPin', 'initFirstAdmin', 'checkConfig', 'measureHash']) assert.ok(names.includes(fn), fn);
+  for (const fn of ['setup', 'initSecrets', 'initAdminPassword', 'initFirstAdmin', 'checkConfig', 'measureHash']) assert.ok(names.includes(fn), fn);
   const bad = found.filter((x) => !PUBLIC.includes(x.name) && !/^EditorGuard\.check\(\);?$/.test(x.first));
   assert.deepEqual(bad.map((x) => x.file + ':' + x.name), [], 'these functions are callable from the browser and have no guard');
 });
@@ -76,23 +76,29 @@ for (const [label, make] of [['a visitor', VISITOR], ['an unknown caller', UNKNO
     assert.equal(env.g('Props').get('PEPPER'), null);
   });
 
-  test('initAdminPin is refused for ' + label + ' and changes no property', () => {
-    const env = setupDb({ tables: false });
+  test('initAdminPassword is refused for ' + label + ', changes no user and keeps its properties', () => {
+    const env = setupDb();
     env.g('initSecrets')();
-    env.g('Props').set('ADMIN_PIN_NEW', 'test-pin-12');
+    env.g('Props').set('ADMIN_EMPLOYEE_NO', '3001');
+    env.g('Props').set('ADMIN_TEMP_PASSWORD', 'temp-pass-12');
     make(env);
-    assert.throws(() => env.g('initAdminPin')(), (e) => e.code === 'FORBIDDEN');
-    assert.equal(env.g('Props').get('ADMIN_PIN_NEW'), 'test-pin-12');
-    assert.equal(env.g('Props').get('ADMIN_PIN_HASH'), null);
+    assert.throws(() => env.g('initAdminPassword')(), (e) => e.code === 'FORBIDDEN');
+    assert.equal(env.plain(env.g('Repository').all('users')).length, 0);
+    assert.equal(env.g('Props').get('ADMIN_EMPLOYEE_NO'), '3001');
+    assert.equal(env.g('Props').get('ADMIN_TEMP_PASSWORD'), 'temp-pass-12');
   });
 
-  test('initFirstAdmin is refused for ' + label + ', creates no user and keeps its property', () => {
+  test('initFirstAdmin is refused for ' + label + ', creates no user and keeps its properties', () => {
     const env = setupDb();
+    env.g('initSecrets')();
     env.g('Props').set('FIRST_ADMIN_NAME', 'Owen Owner');
+    env.g('Props').set('FIRST_ADMIN_EMPLOYEE_NO', '3001');
+    env.g('Props').set('FIRST_ADMIN_PASSWORD', 'temp-pass-12');
     make(env);
     assert.throws(() => env.g('initFirstAdmin')(), (e) => e.code === 'FORBIDDEN');
     assert.equal(env.plain(env.g('Repository').all('users')).length, 0);
     assert.equal(env.g('Props').get('FIRST_ADMIN_NAME'), 'Owen Owner');
+    assert.equal(env.g('Props').get('FIRST_ADMIN_PASSWORD'), 'temp-pass-12');
   });
 
   test('checkConfig is refused for ' + label + ' and returns nothing', () => {
@@ -120,10 +126,13 @@ test('the editor case still works for all six functions', () => {
   const env = setupDb({ tables: false });
   env.g('setup')();
   env.g('initSecrets')();
-  env.g('Props').set('ADMIN_PIN_NEW', 'test-pin-12');
-  env.g('initAdminPin')();
   env.g('Props').set('FIRST_ADMIN_NAME', 'Owen Owner');
+  env.g('Props').set('FIRST_ADMIN_EMPLOYEE_NO', '3001');
+  env.g('Props').set('FIRST_ADMIN_PASSWORD', 'temp-pass-12');
   env.g('initFirstAdmin')();
+  env.g('Props').set('ADMIN_EMPLOYEE_NO', '3001');
+  env.g('Props').set('ADMIN_TEMP_PASSWORD', 'temp-pass-34');
+  env.g('initAdminPassword')();
   assert.equal(env.plain(env.g('checkConfig')()).ok, false);
   assert.ok(env.plain(env.g('measureHash')()).ms1000 >= 0);
 });

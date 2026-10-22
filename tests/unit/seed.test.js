@@ -132,7 +132,8 @@ test('officers get role from SEED_OFFICERS and an unknown role is rejected', () 
   assert.ok(d.rejected.some((r) => r.table === 'users' && r.reason === 'ROLE_UNKNOWN' && r.row === 6));
   assert.ok(d.rejected.some((r) => r.table === 'users' && r.reason === 'HR_NUMBER_DUPLICATE' && r.row === 7));
   assert.ok(d.skipped.some((s) => s.table === 'users' && s.value === 'olivia  tester'));
-  assert.ok(users.every((u) => u.password_hash === '' && u.salt === ''));
+  // a seeded user has no password: Admin adds the number and resets the password before the user can sign in (spec 4.4)
+  assert.ok(['Marco Sample', 'Pat Retired'].every((n) => by(n).password_hash === '' && by(n).salt === ''));
   assert.equal(env.rows('users').filter((u) => u.display_name === 'Olivia Tester').length, 1);
 });
 

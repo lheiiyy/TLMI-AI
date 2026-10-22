@@ -28,56 +28,19 @@ test('initSecrets makes a pepper once and never logs it', () => {
   assert.ok(!env.google.logs.join('\n').includes(pepper));
 });
 
-test('initAdminPin stores a hash and removes the plain property', () => {
-  const env = setupDb({ tables: false });
-  env.g('initSecrets')();
-  env.g('Props').set('ADMIN_PIN_NEW', 'test-pin-12');
-  env.g('Props').set('ADMIN_PIN_FAILS', JSON.stringify({ count: 3, pausedUntil: 0 }));
-  env.g('initAdminPin')();
-  const P = env.g('Props');
-  assert.equal(P.get('ADMIN_PIN_NEW'), null);
-  assert.match(P.get('ADMIN_PIN_HASH'), /^hmac-sha256\$\d+\$[0-9a-f]{64}$/);
-  assert.ok(P.get('ADMIN_PIN_SALT').length >= 32);
-  assert.equal(P.get('ADMIN_PIN_FAILS'), null, 'the failure counter is reset');
-  assert.equal(env.g('Hasher').verify('test-pin-12', P.get('ADMIN_PIN_SALT'), P.get('PEPPER'), P.get('ADMIN_PIN_HASH')), true);
-  assert.equal(env.g('Hasher').verify('test-pin-13', P.get('ADMIN_PIN_SALT'), P.get('PEPPER'), P.get('ADMIN_PIN_HASH')), false);
-  assert.ok(!env.google.logs.join('\n').includes('test-pin-12'));
-  assert.ok(!JSON.stringify(env.google.props).includes('test-pin-12'));
-});
-
-test('initAdminPin refuses a 5-character pin', () => {
-  const env = setupDb({ tables: false });
-  env.g('initSecrets')();
-  env.g('Props').set('ADMIN_PIN_NEW', '12345');
-  assert.throws(() => env.g('initAdminPin')(), /at least 6/);
-  assert.equal(env.g('Props').get('ADMIN_PIN_HASH'), null);
-  assert.equal(env.g('Props').get('ADMIN_PIN_NEW'), '12345', 'left in place so that it can be corrected');
-  assert.ok(!env.google.logs.join('\n').includes('12345'));
-});
-
-test('initAdminPin needs the new pin and the pepper', () => {
-  const env = setupDb({ tables: false });
-  assert.throws(() => env.g('initAdminPin')(), /ADMIN_PIN_NEW/);
-  env.g('Props').set('ADMIN_PIN_NEW', 'test-pin-12');
-  assert.throws(() => env.g('initAdminPin')(), /initSecrets/);
-  assert.equal(env.g('Props').get('ADMIN_PIN_HASH'), null);
-});
-
 test('checkConfig lists missing keys without values', () => {
   const env = setupDb({ tables: false });
   env.g('Props').set('ENV', 'DEV');
   env.g('Props').set('LEGACY_COPY_ID', 'a-legacy-value-that-must-not-be-logged');
   const res = env.plain(env.g('checkConfig')());
   assert.equal(res.ok, false);
-  assert.deepEqual(res.missing.sort(), ['ADMIN_PIN_HASH', 'ADMIN_PIN_SALT', 'PEPPER', 'REVIEW_SHEET_ID']);
+  assert.deepEqual(res.missing.sort(), ['PEPPER', 'REVIEW_SHEET_ID']);
   const logs = env.google.logs.join('\n');
   assert.ok(logs.includes('REVIEW_SHEET_ID'));
   assert.ok(!logs.includes('a-legacy-value-that-must-not-be-logged'));
   assert.ok(!logs.includes('fake-db-id'));
   env.g('Props').set('REVIEW_SHEET_ID', 'x');
   env.g('initSecrets')();
-  env.g('Props').set('ADMIN_PIN_NEW', 'test-pin-12');
-  env.g('initAdminPin')();
   assert.deepEqual(env.plain(env.g('checkConfig')()), { ok: true, missing: [] });
 });
 

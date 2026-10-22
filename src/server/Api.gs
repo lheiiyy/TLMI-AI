@@ -32,7 +32,7 @@ const Api = (function () {
   function failure(e, requestId, rid) {
     if (e instanceof AppError) {
       const err = { code: e.code, message: e.message };
-      ['fields', 'retry_after', 'current'].forEach((k) => { if (e[k] !== undefined) err[k] = e[k]; });
+      ['fields', 'retry_after', 'current', 'rule_id'].forEach((k) => { if (e[k] !== undefined) err[k] = e[k]; });
       return { ok: false, error: err, meta: meta(requestId, rid) };
     }
     Log.error(requestId, e);
@@ -69,6 +69,10 @@ const Api = (function () {
       if (def.auth !== false) {
         const s = AuthService.session(request.token);
         ctx.userId = s.user.id; ctx.hrEmployeeNo = s.user.hr_employee_no || ''; ctx.role = s.role; ctx.user = s.user;
+        // A temporary password must be changed first: every other method is refused until it is (spec 4.1 rule 5).
+        if (s.user.must_change_password && AuthService.ALLOWED_WHILE_MUST_CHANGE.indexOf(method) < 0) {
+          throw Errors.forbidden('Change your password first.');
+        }
         const roles = AuthService.PERMISSIONS[method];
         if (!roles || roles.indexOf(s.role) < 0) throw Errors.forbidden();
       }

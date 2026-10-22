@@ -131,3 +131,7 @@ dl.kv dd { margin: 0; font-variant-numeric: tabular-nums; }
 pre.json { background: var(--surface); border: 1.5px solid var(--line); border-radius: 6px; padding: .75rem; overflow-x: auto; max-width: 100%; font-size: .85rem; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* A temporary password, shown once (Users screen). */
+.temp-password code { font-size: 1.25rem; letter-spacing: 0.04em; padding: 0.2rem 0.5rem; background: #eef1ef; border-radius: 4px; user-select: all; }
+.signin .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }

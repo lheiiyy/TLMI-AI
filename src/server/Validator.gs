@@ -44,6 +44,7 @@ const Validator = {
         const t = v.trim();
         if (t.length > max) return { err: 'TOO_LONG', msg: 'At most ' + max + ' characters.' };
         if (spec.enum && t !== '' && spec.enum.indexOf(t) < 0) return { err: 'NOT_ALLOWED', msg: 'Not an allowed value.' };
+        if (spec.pattern && t !== '' && !spec.pattern.test(t)) return { err: 'PATTERN', msg: spec.patternMessage || 'Not in the expected format.' };
         return { value: t };
       }
       case 'json': {

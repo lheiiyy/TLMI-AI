@@ -2,7 +2,7 @@
 
 What the owner does once to run TLMI-AI on the DEV and TEST Apps Script projects. LIVE is not part of Phase 1: it is deployed by hand by the owner, after a dated copy of the LIVE sheet.
 
-No sheet ID, script ID, PIN, token or e-mail address is written in this file or in the repository. Wherever a value is needed, it goes into a Script Property or into a file that git ignores.
+No sheet ID, script ID, password, token or e-mail address is written in this file or in the repository. Wherever a value is needed, it goes into a Script Property or into a file that git ignores.
 
 ## What you need
 
@@ -35,10 +35,22 @@ In each project open Project settings, then Script Properties, and add these. Us
 | `TLMI_DB_ID` | ID of that environment's `TLMI_DB` sheet |
 | `LEGACY_COPY_ID` | ID of the dated copy of the legacy sheet (never the original) |
 | `REVIEW_SHEET_ID` | ID of the review sheet |
-| `FIRST_ADMIN_NAME` | your own name, typed exactly as it is written in the `SEED_OFFICERS` tab, so that the seed skips you as `EXISTS` and does not make a second user; temporary, removed by `initFirstAdmin` |
-| `ADMIN_PIN_NEW` | the Admin PIN you choose, at least 6 characters; temporary, removed by `initAdminPin` |
 
-`PEPPER`, `ADMIN_PIN_HASH`, `ADMIN_PIN_SALT` and `ADMIN_PIN_FAILS` are written by the setup functions below. Do not type them.
+Add these only when you run the function that reads them. Each one is temporary and is removed by the function:
+
+| Property | Used by | Value |
+| --- | --- | --- |
+| `FIRST_ADMIN_NAME` | `initFirstAdmin` (empty database) | your own name, typed exactly as it is written in the `SEED_OFFICERS` tab, so that the seed skips you as `EXISTS` and does not make a second user |
+| `FIRST_ADMIN_EMPLOYEE_NO` | `initFirstAdmin` | your HR employee number, digits only; it is your sign-in ID |
+| `FIRST_ADMIN_PASSWORD` | `initFirstAdmin` | a temporary password: at least 8 characters, with a letter and a digit. You must change it at your first sign-in |
+| `ADMIN_EMPLOYEE_NO` | `initAdminPassword` (database that already has its Admin) | the HR employee number of the Admin, digits only |
+| `ADMIN_TEMP_PASSWORD` | `initAdminPassword` | a temporary password, same rule |
+
+Leading and trailing spaces are not part of a password: the app removes them everywhere, including in the two temporary password properties.
+
+`PEPPER` and `SESSION_EPOCH:<user id>` are written by the code. Do not type them. The Admin PIN properties of Phase 1 (`ADMIN_PIN_HASH`, `ADMIN_PIN_SALT`, `ADMIN_PIN_FAILS`, `ADMIN_PIN_NEW`) are removed by `initFirstAdmin` and `initAdminPassword`; the PIN no longer exists.
+
+**A database made with the Phase 1 code.** `setup` never changes a tab that exists. The `users` tab of a Phase 1 database lacks four columns that password sign-in needs. Before the first deploy of part 2A, insert four columns in the `users` tab between `salt` and `created_at`, with these header names exactly: `must_change_password`, `failed_attempts`, `cooldown_until`, `last_login_at`. A database made after part 2A has them already.
 
 ## 4. First push
 
@@ -56,8 +68,8 @@ Run them in this order, from the editor's Run menu. Each one logs names only, ne
    - Otherwise use the largest count that takes 2 seconds or less, never below 1,000. Change the constant, commit, push again, and run `measureHash` again.
    - If even 1,000 takes more than 2 seconds, stop and report `BLOCKED — REASON — DECISION REQUIRED`.
    - Record the result here when it is done: iteration count ____, timing on TEST ____ ms, date ____.
-4. `initAdminPin`: turns `ADMIN_PIN_NEW` into a salted, iterated hash and removes the plain PIN. Check that `ADMIN_PIN_NEW` is gone from the Script Properties.
-5. `initFirstAdmin`: makes the first Admin from `FIRST_ADMIN_NAME` and removes that property. It refuses when an active Admin already exists, and when any user (active or not) already has that name. This is what lets someone sign in and run the seed on an empty database.
+4. `initFirstAdmin`: for an **empty database**. It reads `FIRST_ADMIN_NAME`, `FIRST_ADMIN_EMPLOYEE_NO` and `FIRST_ADMIN_PASSWORD`, makes the first Admin (who must change the password at the first sign-in) and removes the three properties. It refuses when an active Admin already exists, when any user (active or not) already has that name or that number, and when the password does not follow the rule; then nothing is changed and the properties stay so that you can correct them. This is what lets someone sign in and run the seed.
+5. `initAdminPassword`: for a database that **already has its Admin** (made by Phase 1), and the way back for an Admin who is locked out or has forgotten the password. It reads `ADMIN_EMPLOYEE_NO` and `ADMIN_TEMP_PASSWORD`. It picks the active Admin who has that number; or, when no user has the number and exactly one active Admin exists, that Admin (the number is set on it). It refuses when the number belongs to a user who is not an active Admin, or when the number is free and there is not exactly one active Admin. It sets the temporary password (the Admin must change it), clears the pause, ends the Admin's sessions, and removes both properties.
 6. `checkConfig`: lists any Script Property that is still missing, by name.
 
 ## 6. Deploy the web app
@@ -70,9 +82,10 @@ Run them in this order, from the editor's Run menu. Each one logs names only, ne
 
 ## 7. Seed and import review (in the app)
 
-1. Sign in as Admin: your name and the PIN. Code and the reviewer never type or store the PIN; you sign in yourself.
+1. Sign in as Admin: your employee ID and the temporary password, then choose your own password. Code and the reviewer never type or store a password; you sign in yourself.
 2. Seed screen: choose Check the seed, read the counts and the lists of skipped and rejected rows, then Run the seed. It can be run again; it skips what exists.
 3. Check the master lists against the `SETTINGS` and `SEED_OFFICERS` tabs of the legacy copy (gate G1, item 2). Give each officer the role they hold: seeded officers start as Training Officer; Admin sets Supervisor, Manager and Senior Training Manager on the Users screen.
+3a. A seeded officer has no password and cannot sign in yet. On the Users screen, Admin gives each officer an HR employee number (Edit) and then Reset password. The screen shows a temporary password once, in a box with a Copy button: **hand it to the officer in person**, never by message. The officer signs in with the employee number and the temporary password and chooses their own password at once. If an officer forgets the password, or is paused after too many wrong tries, Admin uses Reset password or Clear pause.
 4. Import review screen: choose Run the import review. It writes six tabs to the review sheet and changes no Team Leader data.
 
 ### Note for officers who work in the review sheet

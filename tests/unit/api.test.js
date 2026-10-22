@@ -70,7 +70,7 @@ test('6 hours after issue is SESSION_EXPIRED even if active', () => {
 test('deactivated user with a live token is refused', () => {
   const env = setupApi();
   const token = env.signIn('officer');
-  env.g('Repository').transact((uow) => uow.update('users', env.users.officer.id, {}, { expectedVersion: 1, actor: env.actor, isActive: false }));
+  env.g('Repository').transact((uow) => uow.update('users', env.users.officer.id, {}, { expectedVersion: uow.get('users', env.users.officer.id).row_version, actor: env.actor, isActive: false }));
   env.minutes(2);
   assert.equal(env.call('auth.me', {}, token).error.code, 'AUTH_REQUIRED');
 });
@@ -79,7 +79,7 @@ test('role change takes effect on the next call', () => {
   const env = setupApi();
   const token = env.signIn('officer');
   assert.equal(env.call('audit.list', {}, token).error.code, 'FORBIDDEN');
-  env.g('Repository').transact((uow) => uow.update('users', env.users.officer.id, { role: 'Senior Training Manager' }, { expectedVersion: 1, actor: env.actor }));
+  env.g('Repository').transact((uow) => uow.update('users', env.users.officer.id, { role: 'Senior Training Manager' }, { expectedVersion: uow.get('users', env.users.officer.id).row_version, actor: env.actor }));
   env.minutes(2);
   assert.equal(env.call('audit.list', {}, token).ok, true);
 });

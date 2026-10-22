@@ -24,13 +24,13 @@
 ## Next
 
 - Leo does the one-time setup on DEV and TEST in [docs/SETUP.md](SETUP.md) and runs the gate G1 checks in [docs/G1-CHECKLIST.md](G1-CHECKLIST.md). Phase 1 is complete in code; gate G1 is closed only after those checks, and after the timing from `measureHash` and the number format `0.######` have been looked at on TEST.
-- Phase 2 (enrollment and certification) starts only after gate G1 and the Phase 2 spec. It begins with password sign-in (exception X-1) and the throttling of anonymous sign-in calls ("Open for Phase 2" in [docs/DECISIONS.md](DECISIONS.md)). Not started.
-- Settle the extension limit (CFG-047) and the probation start in TDMS before gate G2.
+- Phase 2 pull request E (part 2A, tasks 1 to 7: Employee ID and password sign-in, per-user pause, session epochs, temporary passwords, `initFirstAdmin` and `initAdminPassword`, sign-in, change-password and Users screens) is built and waits for the Reviewer (round 2 fixes the Reviewer's findings 1 to 4: a wrong current password in `auth.changePassword` counts and pauses like a wrong sign-in password; the two temporary password properties are trimmed; the Admin-exists message; the temporary-password box is cleared at sign-out). Next: pull request F (tasks 8 to 12), then G and H, each from an updated `main`. Do not deploy: the `users` tab of an existing database needs four new columns first ([docs/SETUP.md](SETUP.md) section 3).
+- Admin sets the extension limit (CFG-047) and the quit reasons (CFG-018) in the app before the first extension and the first quit. Settle the probation start in TDMS before gate G2 (interim X-2).
 
 ## Blockers and open items
 
 - Open items are listed in [docs/DECISIONS.md](DECISIONS.md) and in spec §12.
-- App code: the whole Phase 1 server, the client (sign-in, master lists, Admin screens) and the tools. 269 unit tests and 54 browser tests pass. Nothing is deployed yet.
+- App code: the whole Phase 1 server, the client (sign-in, master lists, Admin screens) and the tools. 310 unit tests and 59 browser tests pass. Nothing is deployed yet.
 - Branch `docs/scaffold` and the other merged branches could not be deleted from the Code session (the proxy refuses branch deletion); Leo can delete them on GitHub.
-- Interim exception X-1: Phase 1 sign-in is a name list plus an Admin PIN. Password sign-in is the first task of Phase 2, before any Team Leader record is loaded.
+- Interim exception X-1 (name list plus Admin PIN) is ended in code by Phase 2 part 2A (pull request E). It is marked ended in `docs/DECISIONS.md` when 2A is deployed to TEST; Leo records the date. No real Team Leader record is loaded before that.
 - `clasp` login, the DEV and TEST script projects and the Script Properties are set up by Leo once (see [docs/SETUP.md](SETUP.md)).

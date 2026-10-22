@@ -1,6 +1,6 @@
 'use strict';
 const { test, expect } = require('@playwright/test');
-const { fresh, signInAs, signIn, nav, apiFromPage } = require('./helpers');
+const { fresh, signInAs, signIn, nav, apiFromPage, NUMBERS, PASSWORD } = require('./helpers');
 
 const stores = (page) => page.locator('[data-manager="stores"]');
 const row = (scope, text) => scope.locator('tbody tr', { hasText: text });
@@ -45,6 +45,8 @@ test('stale edit shows the conflict message', async ({ page }) => {
 
 test('a duplicate store name shows the problem next to the name', async ({ page }) => {
   await nav(page, 'stores');
+  // wait for the list first: a click before it has loaded is lost when the list renders
+  await expect(row(stores(page), 'TEST STORE ONE')).toBeVisible();
   await page.getByRole('button', { name: 'Add store' }).click();
   await page.fill('#f-locations-name', '  test store one ');
   await page.selectOption('#f-locations-location_type', { label: 'Store' });
@@ -106,24 +108,94 @@ test('stations and components', async ({ page }) => {
   await expect(row(comps, 'Checklist grade')).toBeVisible();
 });
 
-test('adds a user who can then sign in', async ({ page }) => {
+test('adds a user, shows the temporary password once, and the user must choose their own', async ({ page }) => {
   await nav(page, 'users');
   const users = page.locator('[data-manager="users"]');
   await page.getByRole('button', { name: 'Add user' }).click();
   await page.fill('#f-users-display_name', 'Pia Newhire');
   await page.selectOption('#f-users-role', { label: 'Training Officer' });
+  // the HR number is required: it is the sign-in ID
+  await page.getByRole('button', { name: 'Add user' }).last().click();
+  await expect(page.locator('[data-field="hr_employee_no"]')).toContainText('A value is required.');
+  await page.fill('#f-users-hr_employee_no', '97x7');
+  await page.getByRole('button', { name: 'Add user' }).last().click();
+  await expect(page.locator('[data-field="hr_employee_no"]')).toContainText('Digits only.');
   await page.fill('#f-users-hr_employee_no', '9777');
   await page.getByRole('button', { name: 'Add user' }).last().click();
   await expect(users).toContainText('Added.');
   await expect(row(users, 'Pia Newhire')).toContainText('Training Officer');
   await expect(row(users, 'Pia Newhire')).toContainText('9777');
-  // the list never shows hash or salt
+  await expect(row(users, 'Pia Newhire')).toContainText('Temporary');
+  const box = page.locator('[data-slot="temp-password"]');
+  await expect(box).toContainText('Give this password to the user in person. It is not shown again.');
+  const temp = (await box.locator('[data-slot="temp-value"]').textContent()).trim();
+  expect(temp).toMatch(/^[A-Za-z2-9]{12}$/);
+  await expect(box.getByRole('button', { name: 'Copy' })).toBeVisible();
+  // the list never shows a hash, a salt or the password
   await expect(page.locator('#main')).not.toContainText('hmac-sha256');
+  await box.getByRole('button', { name: 'Done' }).click();
+  await expect(box).toHaveCount(0);
+  await expect(page.locator('#main')).not.toContainText(temp);
   await page.click('#signout');
-  await expect(page.locator('#signin-user option', { hasText: 'Pia Newhire' })).toHaveCount(1);
-  await page.selectOption('#signin-user', { label: 'Pia Newhire' });
+  await page.fill('#signin-employee', '9777');
+  await page.fill('#signin-password', temp);
   await page.click('#signin-submit');
+  await expect(page.locator('#screen-password')).toBeVisible();
+  await page.fill('#pw-current', temp);
+  await page.fill('#pw-new', 'pia-own-pass-5');
+  await page.fill('#pw-repeat', 'pia-own-pass-5');
+  await page.click('#pw-submit');
   await expect(page.locator('#who')).toContainText('Pia Newhire');
+});
+
+test('Admin resets a password, sees it once, and the user\'s open session ends', async ({ browser, page }) => {
+  // the officer is signed in on another page
+  const other = await browser.newPage({ baseURL: 'http://127.0.0.1:4173' });
+  await other.goto('/');
+  await other.fill('#signin-employee', NUMBERS.officer);
+  await other.fill('#signin-password', PASSWORD);
+  await other.click('#signin-submit');
+  await expect(other.locator('#screen-app')).toBeVisible();
+  await nav(page, 'users');
+  const users = page.locator('[data-manager="users"]');
+  await page.getByRole('button', { name: 'Reset password of Olivia Tester' }).click();
+  await expect(page.locator('[data-slot="confirm-reset"]')).toContainText('Their sessions end now');
+  await page.locator('[data-slot="confirm-reset"]').getByRole('button', { name: 'Reset password' }).click();
+  await expect(users).toContainText('Password reset.');
+  const temp = (await page.locator('[data-slot="temp-value"]').textContent()).trim();
+  expect(temp).toMatch(/^[A-Za-z2-9]{12}$/);
+  // the box is left open on purpose: Sign out must remove it from the page
+  await page.click('#signout');
+  await expect(page.locator('#screen-signin')).toBeVisible();
+  await expect(page.locator('[data-slot="temp-password"]')).toHaveCount(0);
+  await expect(page.locator('#main')).not.toContainText(temp);
+  // the other page's token no longer works
+  await other.evaluate(() => { window.Api.call('brands.list').catch(() => {}); });
+  await expect(other.locator('#screen-signin')).toBeVisible();
+  // the old password does not work; the temporary one does, and must be changed
+  await other.fill('#signin-employee', NUMBERS.officer);
+  await other.fill('#signin-password', PASSWORD);
+  await other.click('#signin-submit');
+  await expect(other.locator('#signin-message')).toContainText('Sign-in failed');
+  await other.fill('#signin-employee', NUMBERS.officer);
+  await other.fill('#signin-password', temp);
+  await other.click('#signin-submit');
+  await expect(other.locator('#screen-password')).toBeVisible();
+  await other.close();
+});
+
+test('Admin clears the pause of a user who typed a wrong password too often', async ({ page }) => {
+  for (let i = 0; i < 5; i++) {
+    const r = await page.request.post('/api', { data: { v: 1, method: 'auth.signIn', params: { employee_id: NUMBERS.officer, password: 'wrong-pass-' + i } } });
+    expect(r.ok()).toBe(true);
+  }
+  await nav(page, 'users');
+  const users = page.locator('[data-manager="users"]');
+  await expect(row(users, 'Olivia Tester')).toContainText('Paused after wrong tries');
+  await page.getByRole('button', { name: 'Clear the pause of Olivia Tester' }).click();
+  await expect(users).toContainText('The pause was cleared.');
+  await expect(row(users, 'Olivia Tester')).not.toContainText('Paused');
+  await expect(page.getByRole('button', { name: 'Clear the pause of Olivia Tester' })).toHaveCount(0);
 });
 
 test('the last Admin cannot be deactivated, and a user cannot change their own role', async ({ page }) => {

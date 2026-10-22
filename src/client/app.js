@@ -92,6 +92,7 @@
   // ---------- sign-in, sign-out, idle ----------
   function showScreen(name) {
     $('#screen-signin').hidden = name !== 'signin';
+    $('#screen-password').hidden = name !== 'password';
     $('#screen-app').hidden = name !== 'app';
   }
 
@@ -120,53 +121,80 @@
     stopIdle();
     state.user = null;
     Api.setToken(null);
+    clear($('#main')); // a temporary-password box left open must not stay in the hidden page
     showSignIn(message, kind);
   }
 
-  async function showSignIn(message, kind) {
+  function showSignIn(message, kind) {
     showScreen('signin');
     const msg = $('#signin-message');
     msg.hidden = !message;
     setMessage(msg, kind || 'error', message || '');
-    $('#signin-pin').value = '';
-    const select = $('#signin-user');
-    clear(select);
-    select.appendChild(h('option', { value: '' }, 'Choose your name'));
-    try {
-      const users = await Api.call('auth.listSignInUsers');
-      users.forEach((u) => select.appendChild(h('option', { value: u.id }, u.display_name)));
-      if (!users.length) {
-        msg.hidden = false;
-        setMessage(msg, 'error', 'No one can sign in yet. Ask the owner to run the setup.');
-      }
-    } catch (e) {
-      msg.hidden = false;
-      setMessage(msg, 'error', errText(e));
-    }
+    $('#signin-password').value = '';
+    $('#signin-employee').value = '';
+    $('#signin-employee').focus();
   }
 
   async function submitSignIn(ev) {
     ev.preventDefault();
     const msg = $('#signin-message');
-    const id = $('#signin-user').value;
-    const pin = $('#signin-pin').value;
-    if (!id) { msg.hidden = false; setMessage(msg, 'error', 'Choose your name.'); return; }
+    const employee = $('#signin-employee').value.trim();
+    const password = $('#signin-password').value;
+    if (!employee || !password) { msg.hidden = false; setMessage(msg, 'error', 'Type your employee ID and your password.'); return; }
+    if (!/^\d+$/.test(employee)) { msg.hidden = false; setMessage(msg, 'error', 'The employee ID is digits only.'); return; }
     const btn = $('#signin-submit');
     btn.disabled = true;
     try {
-      const params = pin ? { user_id: id, pin: pin } : { user_id: id };
-      const data = await Api.call('auth.signIn', params);
-      $('#signin-pin').value = '';
+      const data = await Api.call('auth.signIn', { employee_id: employee, password: password });
+      $('#signin-password').value = '';
       Api.setToken(data.token);
       state.user = data.user;
       msg.hidden = true;
-      showApp();
+      if (data.must_change_password) showPassword(true); else showApp();
     } catch (e) {
-      $('#signin-pin').value = '';
+      $('#signin-password').value = '';
       msg.hidden = false;
-      if (e.code === 'AUTH_FAILED') setMessage(msg, 'error', 'Sign-in failed. Check the name and the PIN.');
+      if (e.code === 'AUTH_FAILED') setMessage(msg, 'error', 'Sign-in failed. Check the employee ID and the password.');
       else if (e.code === 'AUTH_LOCKED') setMessage(msg, 'error', 'Too many tries. Try again in ' + Math.max(1, Math.ceil((e.retry_after || 60) / 60)) + ' minutes.');
       else setMessage(msg, 'error', errText(e));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // The change-password screen. forced: a temporary password is in use, so nothing else is open until it is changed.
+  function showPassword(forced) {
+    state.forcedPassword = forced;
+    showScreen('password');
+    stopIdle();
+    startIdle();
+    ['#pw-current', '#pw-new', '#pw-repeat'].forEach((sel) => { $(sel).value = ''; });
+    $('#pw-message').hidden = true;
+    $('#pw-lead').textContent = forced ? 'Your password is temporary. Choose your own before you continue.' : 'Choose a new password.';
+    $('#pw-cancel').hidden = !!forced;
+    $('#pw-current').focus();
+  }
+
+  async function submitPassword(ev) {
+    ev.preventDefault();
+    const msg = $('#pw-message');
+    const current = $('#pw-current').value;
+    const next = $('#pw-new').value;
+    const fail = (text) => { msg.hidden = false; setMessage(msg, 'error', text); };
+    if (!current || !next) { fail('Type the current password and a new password.'); return; }
+    if (next !== $('#pw-repeat').value) { fail('The two new passwords are not the same.'); return; }
+    const btn = $('#pw-submit');
+    btn.disabled = true;
+    try {
+      const data = await Api.call('auth.changePassword', { current: current, new: next });
+      Api.setToken(data.token);
+      ['#pw-current', '#pw-new', '#pw-repeat'].forEach((sel) => { $(sel).value = ''; });
+      msg.hidden = true;
+      showApp();
+    } catch (e) {
+      ['#pw-current', '#pw-new', '#pw-repeat'].forEach((sel) => { $(sel).value = ''; });
+      if (e.code === 'VALIDATION' && e.fields && e.fields.length) fail(e.fields[0].message);
+      else fail(errText(e));
     } finally {
       btn.disabled = false;
     }
@@ -303,12 +331,13 @@
       ],
     },
     users: {
-      method: 'users', title: 'Users', noun: 'user', needs: [],
-      columns: () => [{ label: 'Name', key: 'display_name' }, { label: 'Role', key: 'role' }, { label: 'HR number', key: 'hr_employee_no' }],
+      method: 'users', title: 'Users', noun: 'user', needs: [], passwordActions: true,
+      columns: () => [{ label: 'Name', key: 'display_name' }, { label: 'Role', key: 'role' }, { label: 'Employee ID', key: 'hr_employee_no' },
+        { label: 'Password', value: (r) => (r.paused ? 'Paused after wrong tries' : r.must_change_password ? 'Temporary' : r.has_password === false ? 'None yet' : 'Set') }],
       fields: [
         { name: 'display_name', label: 'Name', type: 'text', required: true },
         { name: 'role', label: 'Role', type: 'select', source: 'roles', required: true },
-        { name: 'hr_employee_no', label: 'HR employee number', type: 'text' },
+        { name: 'hr_employee_no', label: 'HR employee number', type: 'text', required: true, hint: 'Digits only. This is the number the user signs in with.' },
       ],
     },
   };
@@ -381,7 +410,60 @@
           onclick: () => toggle(r),
         }, on ? 'Deactivate' : 'Reactivate'));
       }
+      if (cfg.passwordActions && r.is_active) {
+        const who = r.display_name || r.id;
+        out.push(h('button', { type: 'button', class: 'secondary small', 'data-action': 'reset-password', 'aria-label': 'Reset password of ' + who, onclick: () => askReset(r) }, 'Reset password'));
+        if (r.paused) out.push(h('button', { type: 'button', class: 'secondary small', 'data-action': 'clear-pause', 'aria-label': 'Clear the pause of ' + who, onclick: () => clearPause(r) }, 'Clear pause'));
+      }
       return out;
+    }
+
+    // A temporary password is shown once, here, and never again (spec 4.6).
+    function showTemp(name, password) {
+      clear(formBox);
+      const code = h('code', { 'data-slot': 'temp-value' }, password);
+      const copied = h('span', { role: 'status', 'data-slot': 'copied' });
+      const copy = h('button', { type: 'button', class: 'secondary small', 'data-action': 'copy-password', onclick: async () => {
+        try { await navigator.clipboard.writeText(password); copied.textContent = ' Copied.'; } catch (e) { copied.textContent = ' Select the password and copy it by hand.'; }
+      } }, 'Copy');
+      formBox.appendChild(h('div', { class: 'panel temp-password', 'data-slot': 'temp-password', role: 'alert' },
+        h('h3', {}, 'Temporary password for ' + name),
+        h('p', {}, code, ' ', copy, copied),
+        h('p', {}, 'Give this password to the user in person. It is not shown again. They must choose their own password at the first sign-in.'),
+        h('div', { class: 'actions' }, h('button', { type: 'button', onclick: closeForm }, 'Done'))));
+    }
+
+    function askReset(r) {
+      clear(formBox);
+      const name = r.display_name || r.id;
+      formBox.appendChild(h('div', { class: 'panel', 'data-slot': 'confirm-reset' },
+        h('h3', {}, 'Reset the password of ' + name + '?'),
+        h('p', {}, 'A new temporary password is made. Their sessions end now, and they must choose a new password at the next sign-in.'),
+        h('div', { class: 'actions' },
+          h('button', { type: 'button', 'data-action': 'confirm-reset', onclick: () => doReset(r) }, 'Reset password'),
+          h('button', { type: 'button', class: 'secondary', onclick: closeForm }, 'Cancel'))));
+    }
+
+    async function doReset(r) {
+      setMessage(msg, 'ok', '');
+      try {
+        const out = await Api.call(cfg.method + '.resetPassword', { id: r.id, row_version: r.row_version });
+        await reload('Password reset.');
+        showTemp(r.display_name, out.temporary_password);
+      } catch (e) {
+        closeForm();
+        conflictOrError(e);
+      }
+    }
+
+    async function clearPause(r) {
+      setMessage(msg, 'ok', '');
+      try {
+        await Api.call(cfg.method + '.clearCooldown', { id: r.id, row_version: r.row_version });
+        await reload('The pause was cleared.');
+      } catch (e) {
+        conflictOrError(e);
+      }
     }
 
     async function toggle(r) {
@@ -447,6 +529,7 @@
       form.appendChild(h('div', { class: 'actions' }, save, h('button', { type: 'button', class: 'secondary', onclick: closeForm }, 'Cancel')));
       form.addEventListener('submit', async (ev) => {
         ev.preventDefault();
+        let created = null;
         form.querySelectorAll('.has-error').forEach((x) => x.classList.remove('has-error'));
         form.querySelectorAll('.error-text').forEach((x) => x.remove());
         setMessage(slot(form, 'form-message'), 'error', '');
@@ -464,10 +547,11 @@
           } else {
             const values = {};
             cfg.fields.forEach((f) => { const x = readValue(form, f); if (x !== null && x !== '') values[f.name] = x; else if (f.type === 'checkbox') values[f.name] = false; });
-            await Api.call(cfg.method + '.create', values);
+            created = await Api.call(cfg.method + '.create', values);
           }
           closeForm();
           await reload(editing ? 'Saved.' : 'Added.');
+          if (created && created.temporary_password) showTemp(created.user.display_name, created.temporary_password);
         } catch (e) {
           save.disabled = false;
           if (e.code === 'CONFLICT') { conflictOrError(e); closeForm(); return; }
@@ -680,6 +764,10 @@
   function start() {
     Api.configure({ onSessionEnd: () => endSession('Your session has ended. Sign in again.') });
     $('#signin-form').addEventListener('submit', submitSignIn);
+    $('#pw-form').addEventListener('submit', submitPassword);
+    $('#pw-cancel').addEventListener('click', () => showApp());
+    $('#pw-signout').addEventListener('click', signOut);
+    $('#change-password').addEventListener('click', () => showPassword(false));
     $('#signout').addEventListener('click', signOut);
     ['click', 'keydown', 'pointerdown', 'touchstart'].forEach((t) => document.addEventListener(t, onActivity, { passive: true }));
     showSignIn('');

@@ -8,11 +8,13 @@ const NAMES = {
   senior: 'Sean Senior',
   admin: 'Ada Admin',
 };
+// Employee numbers and the password of the invented dev users (tools/dev-env.js). Test code only.
+const NUMBERS = { officer: '9101', supervisor: '9102', manager: '9103', senior: '9104', admin: '9105', temporary: '9106' };
+const PASSWORD = 'TEST-ONLY-Pass-1';
 const ROLE_LABEL = {
   officer: 'Training Officer', supervisor: 'Training Supervisor', manager: 'Training Manager',
   senior: 'Senior Training Manager', admin: 'Admin',
 };
-const ADMIN_PIN = 'TEST-ONLY-PIN-1';
 const WIDTHS = [1280, 768, 375];
 
 // Starts every test from the same invented data, and records console errors and failed requests.
@@ -24,31 +26,26 @@ async function fresh(page, opts) {
   page.on('response', (r) => { if (r.status() >= 400) problems.requests.push(r.url() + ' ' + r.status()); });
   await page.request.post('/__reset');
   if (opts && opts.width) await page.setViewportSize({ width: opts.width, height: 900 });
-  // opts.delayList (ms) holds back the answer to the name list, to prove that a test does not rely on it being fast.
-  if (opts && opts.delayList) {
-    await page.route('**/api', async (route) => {
-      const body = route.request().postData() || '';
-      if (body.includes('auth.listSignInUsers')) await new Promise((resolve) => setTimeout(resolve, opts.delayList));
-      await route.continue();
-    });
-  }
   await page.goto('/');
-  await expect(page.locator('#signin-user')).toBeVisible();
-  // The select is shown first and filled when the name list arrives: wait for the names, not only for the select.
-  await expect(page.locator('#signin-user option')).not.toHaveCount(1);
+  await expect(page.locator('#signin-employee')).toBeVisible();
   return problems;
 }
 
-async function signIn(page, who, pin) {
-  await page.selectOption('#signin-user', { label: NAMES[who] });
-  if (pin !== undefined) await page.fill('#signin-pin', pin);
+// Fills the form and submits it, and waits until the screen has handled the answer. Without the wait, the next call
+// could fill the password before the page clears it after a failure, and the form would be submitted empty.
+async function signIn(page, who, password) {
+  await page.fill('#signin-employee', NUMBERS[who]);
+  await page.fill('#signin-password', password === undefined ? PASSWORD : password);
+  const answered = page.waitForResponse((r) => r.url().endsWith('/api') && (r.request().postData() || '').includes('auth.signIn'));
   await page.click('#signin-submit');
+  await answered;
+  await expect(page.locator('#signin-submit')).toBeEnabled();
 }
 
 async function signInAs(page, who) {
-  await signIn(page, who, who === 'admin' ? ADMIN_PIN : undefined);
+  await signIn(page, who);
   await expect(page.locator('#screen-app')).toBeVisible();
-  await expect(page.locator('#who')).toContainText(NAMES[who]);
+  await expect(page.locator('#who')).toContainText(NAMES[who] || '');
 }
 
 async function nav(page, id) {
@@ -68,4 +65,4 @@ async function noHorizontalScroll(page) {
   expect(wide).toBe(false);
 }
 
-module.exports = { NAMES, ROLE_LABEL, ADMIN_PIN, WIDTHS, fresh, signIn, signInAs, nav, apiFromPage, noHorizontalScroll };
+module.exports = { NAMES, NUMBERS, PASSWORD, ROLE_LABEL, WIDTHS, fresh, signIn, signInAs, nav, apiFromPage, noHorizontalScroll };
