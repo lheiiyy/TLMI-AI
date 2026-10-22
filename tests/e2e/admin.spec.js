@@ -45,6 +45,8 @@ test('stale edit shows the conflict message', async ({ page }) => {
 
 test('a duplicate store name shows the problem next to the name', async ({ page }) => {
   await nav(page, 'stores');
+  // wait for the list first: a click before it has loaded is lost when the list renders
+  await expect(row(stores(page), 'TEST STORE ONE')).toBeVisible();
   await page.getByRole('button', { name: 'Add store' }).click();
   await page.fill('#f-locations-name', '  test store one ');
   await page.selectOption('#f-locations-location_type', { label: 'Store' });
