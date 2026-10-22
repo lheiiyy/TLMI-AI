@@ -114,7 +114,7 @@ The import is run before anybody enrolls a Team Leader in the app on that enviro
 
 1. After part 2A is deployed and you have signed in with a password, run the import review (section 7) and let the officers make their decisions in the review sheet.
 2. Legacy import screen: choose Check the legacy rows. Read the counts and the problems in words. Fix decisions in the review sheet and check again until the problems are understood. A row that cannot be fixed is skipped on the screen with a reason.
-3. Make a dated copy of the TEST `TLMI_DB`. Type today's date in the backup date field and choose Commit the ready rows. If rows remain, choose Continue the commit until it says the commit is complete.
+3. Make a dated copy of the TEST `TLMI_DB`. Type today's date in the backup date field and choose Commit the ready rows. If rows remain, choose Continue the commit until it says the commit is complete. Continue on the same day: the check includes today's date, so a commit that stops and is continued on another day needs a new check first.
 4. Read the reconciliation. It says Yes when every source row is committed or skipped with a reason and the legacy RESULT counts agree with the status counts in the app.
 5. The rehearsal holds real names. Share the TEST link only with named officers, as in Phase 1.
 
