@@ -46,6 +46,8 @@ Add these only when you run the function that reads them. Each one is temporary 
 | `ADMIN_EMPLOYEE_NO` | `initAdminPassword` (database that already has its Admin) | the HR employee number of the Admin, digits only |
 | `ADMIN_TEMP_PASSWORD` | `initAdminPassword` | a temporary password, same rule |
 
+Leading and trailing spaces are not part of a password: the app removes them everywhere, including in the two temporary password properties.
+
 `PEPPER` and `SESSION_EPOCH:<user id>` are written by the code. Do not type them. The Admin PIN properties of Phase 1 (`ADMIN_PIN_HASH`, `ADMIN_PIN_SALT`, `ADMIN_PIN_FAILS`, `ADMIN_PIN_NEW`) are removed by `initFirstAdmin` and `initAdminPassword`; the PIN no longer exists.
 
 **A database made with the Phase 1 code.** `setup` never changes a tab that exists. The `users` tab of a Phase 1 database lacks four columns that password sign-in needs. Before the first deploy of part 2A, insert four columns in the `users` tab between `salt` and `created_at`, with these header names exactly: `must_change_password`, `failed_attempts`, `cooldown_until`, `last_login_at`. A database made after part 2A has them already.

@@ -40,14 +40,15 @@ function initFirstAdmin() {
   EditorGuard.check();
   const name = String(Props.get('FIRST_ADMIN_NAME') || '').trim();
   const no = String(Props.get('FIRST_ADMIN_EMPLOYEE_NO') || '').trim();
-  const password = String(Props.get('FIRST_ADMIN_PASSWORD') || '');
+  // Trimmed like every password that comes through the API (Validator trims text), so sign-in hashes the same string.
+  const password = String(Props.get('FIRST_ADMIN_PASSWORD') || '').trim();
   if (!name) throw new Error('Set the Script Property FIRST_ADMIN_NAME first (your own name).');
   if (!/^\d{1,20}$/.test(no)) throw new Error('Set the Script Property FIRST_ADMIN_EMPLOYEE_NO first (your HR employee number, digits only).');
   const bad = PasswordRules.check(password);
   if (!bad.ok) throw new Error('FIRST_ADMIN_PASSWORD does not follow the password rule (' + bad.code + '). Nothing was changed.');
   const users = Repository.all('users');
   if (users.some((u) => u.role === 'Admin' && u.is_active)) {
-    throw new Error('An active Admin already exists. Nothing was changed.');
+    throw new Error('An active Admin already exists. Nothing was changed. Delete the three FIRST_ADMIN properties by hand.');
   }
   // Compared as the seed compares names (trimmed, spaces collapsed, case-insensitive), so the seed will skip this user as EXISTS.
   const key = (s) => String(s).trim().replace(/\s+/g, ' ').toLowerCase();
@@ -78,7 +79,8 @@ function initFirstAdmin() {
 function initAdminPassword() {
   EditorGuard.check();
   const no = String(Props.get('ADMIN_EMPLOYEE_NO') || '').trim();
-  const password = String(Props.get('ADMIN_TEMP_PASSWORD') || '');
+  // Trimmed like every password that comes through the API (Validator trims text), so sign-in hashes the same string.
+  const password = String(Props.get('ADMIN_TEMP_PASSWORD') || '').trim();
   if (!/^\d{1,20}$/.test(no)) throw new Error('Set the Script Property ADMIN_EMPLOYEE_NO first (the Admin\'s HR employee number, digits only).');
   const bad = PasswordRules.check(password);
   if (!bad.ok) throw new Error('ADMIN_TEMP_PASSWORD does not follow the password rule (' + bad.code + '). Nothing was changed.');

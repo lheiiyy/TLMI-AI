@@ -201,3 +201,31 @@ test('initAdminPin no longer exists', () => {
   const env = setupDb();
   assert.throws(() => env.g('initAdminPin'), /not defined/);
 });
+
+test('initFirstAdmin trims the password like the API, so sign-in works with the trimmed text', () => {
+  for (const pw of ['first-pass-12 ', ' first-pass-12', '  first-pass-12  ']) {
+    const env = ready();
+    firstAdminProps(env, { password: pw });
+    env.g('initFirstAdmin')();
+    const call = (m, p) => env.plain(env.g('tlmiApi')({ v: 1, method: m, params: p }));
+    assert.equal(call('auth.signIn', { employee_id: '3001', password: 'first-pass-12' }).ok, true, JSON.stringify(pw));
+  }
+});
+
+test('initAdminPassword trims the password like the API, so sign-in works with the trimmed text', () => {
+  for (const pw of ['temp-pass-12 ', ' temp-pass-12']) {
+    const env = ready();
+    addUser(env, { display_name: 'Existing Admin', role: 'Admin' });
+    adminProps(env, '3001', pw);
+    env.g('initAdminPassword')();
+    const call = (m, p) => env.plain(env.g('tlmiApi')({ v: 1, method: m, params: p }));
+    assert.equal(call('auth.signIn', { employee_id: '3001', password: 'temp-pass-12' }).ok, true, JSON.stringify(pw));
+  }
+});
+
+test('initFirstAdmin tells the owner to delete the properties by hand when an Admin already exists', () => {
+  const env = ready();
+  addUser(env, { display_name: 'Existing Admin', role: 'Admin' });
+  firstAdminProps(env);
+  assert.throws(() => env.g('initFirstAdmin')(), (e) => /An active Admin already exists\./.test(e.message) && e.message.endsWith('Delete the three FIRST_ADMIN properties by hand.') && !e.message.includes('first-pass-12'));
+});
