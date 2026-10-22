@@ -11,7 +11,7 @@
 - Phase 2 pull request F merged (#24 `513a6fd`): Team Leader tables, rules, `tl.*` and `persons.*` methods.
 - Docs pull request #25 merged (`39a7072`): the hourly Code task.
 - Phase 2 pull request G merged (#30 `5e0f136`): Team Leader screens, `App.registerNav`, invented records in the dev environment, browser tests. Its two open questions were decided by the Reviewer on #30: no deadline preview (the deadline is shown after saving), and the signed-in user is the one certifying officer.
-- Phase 2 pull request H (issue #31, plan Tasks 15 to 18): proposed name parts and decision words in the import review; `import.validate`, `import.get`, `import.rows.list`, `import.rows.skip`, `import.commit` (Admin only) with chunked, idempotent commit and reconciliation; the Legacy import screen; [docs/G2-CHECKLIST.md](G2-CHECKLIST.md); the rehearsal and LIVE steps in [docs/SETUP.md](SETUP.md) section 9. In review.
+- Phase 2 pull request H merged (#33 `8e13842`; issue #31, plan Tasks 15 to 18): proposed name parts and decision words in the import review; `import.validate`, `import.get`, `import.rows.list`, `import.rows.skip`, `import.commit` (Admin only) with chunked, idempotent commit and reconciliation; the Legacy import screen; [docs/G2-CHECKLIST.md](G2-CHECKLIST.md); the rehearsal and LIVE steps in [docs/SETUP.md](SETUP.md) section 9. A certification grade with no DATE CERTIFIED is not imported and gives the warning `CERT_GRADE_NO_DATE` (spec §10.5, Reviewer's decision on #33).
 
 ## Open items
 
@@ -22,4 +22,4 @@
 
 ## Next
 
-- Merge H after the Reviewer's verdict (round 2 pushed; #32 merged as `0bcff98`), then the rehearsal on TEST and gate G2 ([docs/G2-CHECKLIST.md](G2-CHECKLIST.md)). Deployment and the LIVE run are the owner's.
+- The rehearsal on TEST and gate G2 ([docs/G2-CHECKLIST.md](G2-CHECKLIST.md)). Deployment and the LIVE run are the owner's. The import runs before anybody enrolls a Team Leader in the app on that environment.
