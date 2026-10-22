@@ -41,6 +41,8 @@ const AuthService = (function () {
     'seed.run': [ADMIN],
     'importReview.run': [ADMIN], 'importReview.get': [ADMIN],
     'persons.get': ALL, 'persons.matchCandidates': ALL,
+    'tl.list': ALL, 'tl.get': ALL, 'tl.history': ALL,
+    'tl.enroll': ALL, 'tl.update': ALL, 'tl.recordEntryGrade': ALL,
     'audit.list': [SENIOR, ADMIN],
     'history.get': [ADMIN],
   };
