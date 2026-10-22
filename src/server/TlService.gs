@@ -623,5 +623,5 @@ const TlService = (function () {
     };
   }
 
-  return { methods: methods, view: view, statusChange: statusChange };
+  return { methods: methods, view: view, statusChange: statusChange, touch: touch };
 })();

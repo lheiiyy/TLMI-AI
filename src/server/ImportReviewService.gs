@@ -344,5 +344,7 @@ const ImportReviewService = (function () {
     };
   }
 
-  return { methods: methods };
+  // Shared with ImportService: the same reading of the legacy copy and of the confirmed aliases, so that the validation
+  // maps names exactly as the review did.
+  return { methods: methods, sourceIds: sourceIds, readMasterLog: readMasterLog, readAliases: readAliases };
 })();
