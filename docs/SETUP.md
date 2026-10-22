@@ -100,6 +100,40 @@ Run them in this order, from the editor's Run menu. Each one logs names only, ne
 
 One smoke test on the deployed TEST app, with dummy data only, signed in by you: sign in, open the master lists, change nothing real. The browser tests (`npm run e2e`) cover the rest on localhost with fake data.
 
+## 9. Legacy import: rehearsal on TEST and the real run
+
+The Legacy import screen (Admin only) brings the legacy Team Leader records into the app. It uses the decisions written in the review sheet. It never guesses: a row without a decision stays "Not ready". It never writes to the legacy copy or to the review sheet, and it never imports uniforms in Phase 2.
+
+### Decision words in the review sheet
+
+In the `decision` column an officer writes one of: `confirm`, `different person`, `correct value`, `drop value`. For `correct value`, the `corrected_value` column holds the new value. For a proposed person it holds exactly four parts: `LAST | FIRST | MIDDLE | SUFFIX`, with the middle name and suffix left empty when there are none (for example `SAMPLE | REA | | `). An officer cell in MASTER_LOG that holds a note and not a name is shown as a warning; it is not an error.
+
+The import is run before anybody enrolls a Team Leader in the app on that environment. On TEST, start the rehearsal from a database without app-made Team Leaders: the import reuses a person only by its own legacy reference, so a Team Leader enrolled earlier in the app would get a second person and a second open record.
+
+### Rehearsal on TEST
+
+1. After part 2A is deployed and you have signed in with a password, run the import review (section 7) and let the officers make their decisions in the review sheet.
+2. Legacy import screen: choose Check the legacy rows. Read the counts and the problems in words. Fix decisions in the review sheet and check again until the problems are understood. A row that cannot be fixed is skipped on the screen with a reason.
+3. Make a dated copy of the TEST `TLMI_DB`. Type today's date in the backup date field and choose Commit the ready rows. If rows remain, choose Continue the commit until it says the commit is complete.
+4. Read the reconciliation. It says Yes when every source row is committed or skipped with a reason and the legacy RESULT counts agree with the status counts in the app.
+5. The rehearsal holds real names. Share the TEST link only with named officers, as in Phase 1.
+
+### The real run on LIVE
+
+The owner does this by hand. Code never deploys to LIVE and never touches the LIVE Script Properties.
+
+1. Make a dated copy of the LIVE `TLMI_DB`.
+2. Repeat steps 1 to 4 of the rehearsal on LIVE.
+3. Leo sets the MASTER_LOG tab of the original legacy sheet to read-only. This closes gate G2 ([G2-CHECKLIST.md](G2-CHECKLIST.md)).
+
+### About the backup date
+
+The commit asks for the date of the backup, and it must be today's date. This is a reminder to make the copy first. The app cannot check that a copy exists, so the date proves nothing. Make the copy before you commit.
+
+### If a commit stops
+
+A commit works in steps of 25 rows. If the data sheet is busy or the call ends early, the screen says how many rows remain; choose Continue the commit. Each row is committed exactly once, and a second commit of the same data creates nothing new. If the review sheet or the legacy copy changed since the check, the commit is refused: check the legacy rows again.
+
 ## Rolling back
 
 Every deploy is a commit. To go back, check out the earlier commit and run the deploy command again. Before any risky change on LIVE, the owner makes a dated copy of the LIVE sheet.

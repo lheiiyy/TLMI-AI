@@ -4,12 +4,16 @@
 const ImportReviewService = (function () {
   const TAIL = ['row_key', 'decision', 'corrected_value', 'decided_by', 'decided_on', 'needs_review'];
   const TABS = {
-    persons_proposed: ['proposed_name', 'spellings', 'enrollments', 'entry_dates', 'source_rows'],
+    persons_proposed: ['proposed_name', 'spellings', 'enrollments', 'entry_dates', 'source_rows',
+      'proposed_last_name', 'proposed_first_name', 'proposed_middle_name', 'proposed_suffix'],
     possible_duplicates: ['name_a', 'name_b', 'reason', 'source_rows_a', 'source_rows_b'],
     name_mapping: ['kind', 'raw_value', 'normalized', 'status', 'match', 'candidates', 'note', 'occurrences', 'source_rows'],
     bad_values: ['source_tab', 'source_row', 'column', 'raw_value', 'code', 'proposed'],
     uniform_split: ['source', 'source_row', 'full_name', 'store', 'item', 'size', 'quantity', 'dr_no', 'issued_on', 'given_by'],
   };
+  // The row key hashes only the first KEY_CELLS cells of a row, so that columns added later (the proposed name parts) do not
+  // change the key of a row and every earlier decision stays attached to it. A tab not listed hashes all its cells.
+  const KEY_CELLS = { persons_proposed: 5 };
   // Header text (upper case, trimmed, spaces collapsed) -> field name. The first column has no header.
   const HEADERS = {
     'DATE OF ENTRY': 'entry_date', 'BATCH #': 'batch', 'MOTHER STORE': 'mother_store', 'FULL NAME': 'full_name',
@@ -190,10 +194,13 @@ const ImportReviewService = (function () {
     });
 
     // persons and duplicates
-    const personRows = Array.from(persons.values()).sort((a, b) => (a.n < b.n ? -1 : 1)).map((p) => ({
-      id: 'persons_proposed|' + p.n,
-      cells: [p.n, p.spellings.join(' | '), p.rows.length, p.dates.slice().sort().join(' | '), p.rows.join(', ')],
-    }));
+    const personRows = Array.from(persons.values()).sort((a, b) => (a.n < b.n ? -1 : 1)).map((p) => {
+      const np = ImportRules.proposeNameParts(p.spellings[0]);
+      return {
+        id: 'persons_proposed|' + p.n,
+        cells: [p.n, p.spellings.join(' | '), p.rows.length, p.dates.slice().sort().join(' | '), p.rows.join(', '), np.last, np.first, np.middle, np.suffix],
+      };
+    });
     const rowsOf = (name) => (persons.get(ImportRules.normalizeName(name)) || { rows: [] }).rows.join(', ');
     const allNames = [];
     persons.forEach((p) => allNames.push(p.spellings[0]));
@@ -228,7 +235,8 @@ const ImportReviewService = (function () {
   function withDecisions(tab, rows, oldValues) {
     const header = TABS[tab].concat(TAIL);
     const width = TABS[tab].length;
-    const keyOf = (r) => r.id + '|' + ImportRules.hash(r.cells.join('\u0001'));
+    const keyCells = KEY_CELLS[tab] || width;
+    const keyOf = (r) => r.id + '|' + ImportRules.hash(r.cells.slice(0, keyCells).join('\u0001'));
     const out = [];
     const old = { byKey: new Map(), byId: new Map() };
     if (oldValues && oldValues.length > 1) {
@@ -238,7 +246,8 @@ const ImportReviewService = (function () {
         const key = r[pos('row_key')];
         if (!key) return;
         const rec = {
-          key: key, id: key.slice(0, key.lastIndexOf('|')), content: h.slice(0, width).map((c, i) => r[i]),
+          // the content is read by column name, so a tab written before columns were added still reads (the new ones are empty)
+          key: key, id: key.slice(0, key.lastIndexOf('|')), content: TABS[tab].map((c) => (pos(c) >= 0 ? r[pos(c)] : '')),
           tail: [r[pos('decision')], r[pos('corrected_value')], r[pos('decided_by')], r[pos('decided_on')], r[pos('needs_review')]],
         };
         old.byKey.set(key, rec);
@@ -335,5 +344,7 @@ const ImportReviewService = (function () {
     };
   }
 
-  return { methods: methods };
+  // Shared with ImportService: the same reading of the legacy copy and of the confirmed aliases, so that the validation
+  // maps names exactly as the review did.
+  return { methods: methods, sourceIds: sourceIds, readMasterLog: readMasterLog, readAliases: readAliases };
 })();

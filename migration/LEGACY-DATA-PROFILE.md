@@ -59,6 +59,10 @@ Values that look wrong and must go to the review list, not be fixed silently:
 | FAILED | Failed | |
 | DISQUALIFIED | Failed | close reason `Disqualified` (DECISIONS item 4) |
 
+## CEBU TL finding
+
+Checked on 2026-10-21 against the dated copy: the CEBU TL tab has 8 rows, and all 8 are in MASTER_LOG with the same columns. It is a regional view of the same Team Leaders, not a separate list, so it is not imported (decision P2-12). Importing MASTER_LOG covers it.
+
 ## SETTINGS tab (store and region)
 
 No header row. Column A is the store name (some with a trailing space), column B the region. Only 35 stores are listed, all in NCR. MASTER_LOG uses many more stores (provincial stores such as those used as mother or support store). After the seed, every store name in MASTER_LOG that is not in the master list appears in `name_mapping` with status `none`; Admin adds the store and chooses its region. Do not guess a region.
@@ -73,4 +77,4 @@ A tab of 12 officers copied from the officer list of the TOIS database: `display
 
 ## Open questions this profile cannot answer
 
-Already in [docs/DECISIONS.md](../docs/DECISIONS.md): the meaning of the asterisk on stations, whether CEBU TL is a separate list, which uniform items are tracked. New from this profile: whether `NONE` in SUPPORT STORE means no support store (assumed yes, shown in the review list), and what the stray numeric STATUS value is (shown in `bad_values`).
+Already in [docs/DECISIONS.md](../docs/DECISIONS.md): the meaning of the asterisk on stations, which uniform items are tracked. New from this profile: whether `NONE` in SUPPORT STORE means no support store (assumed yes, shown in the review list), and what the stray numeric STATUS value is (shown in `bad_values`).

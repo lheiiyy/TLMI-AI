@@ -249,7 +249,75 @@ const ImportRules = (function () {
     return ('00000000' + h.toString(16)).slice(-8);
   }
 
+  // ---- name parts (spec 10.4) ----------------------------------------------------------------------------------------
+  const SUFFIXES = ['JR', 'SR', 'II', 'III', 'IV'];
+  const PARTICLES = ['DE', 'DEL', 'DELA', 'DELOS', 'SAN', 'STA', 'STO'];
+  const DECISIONS = ['confirm', 'different person', 'correct value', 'drop value'];
+  const bare = (t) => t.replace(/\.$/, '');
+  const isSuffix = (t) => SUFFIXES.indexOf(bare(t)) >= 0;
+  const isInitial = (t) => /^\p{L}\.?$/u.test(t);
+
+  // Takes a suffix word out of the words (anywhere in the cell). Returns { words, suffix }.
+  function takeSuffix(words) {
+    let suffix = '';
+    const rest = words.filter((w) => {
+      if (!isSuffix(w)) return true;
+      suffix = bare(w);
+      return false;
+    });
+    return { words: rest, suffix: suffix };
+  }
+
+  // A proposal only: the officer confirms it or types the right parts (spec 10.2). Upper case, spaces collapsed.
+  // With a comma: LAST, FIRST MIDDLE. Without: the last word is the last name, joined with the surname particles before it
+  // (DE, DEL, DELA, DE LA, DELOS, DE LOS, SAN, STA, STO); JR, SR, II, III, IV are the suffix; one letter before the last name is the
+  // middle name; the rest is the first name.
+  function proposeNameParts(full) {
+    const text = tidy(full).toUpperCase();
+    const out = { last: '', first: '', middle: '', suffix: '' };
+    if (text === '') return out;
+    const comma = text.indexOf(',');
+    if (comma >= 0) {
+      const head = takeSuffix(tidy(text.slice(0, comma)).split(' ').filter((w) => w !== ''));
+      const tail = takeSuffix(tidy(text.slice(comma + 1).replace(/,/g, ' ')).split(' ').filter((w) => w !== ''));
+      out.last = head.words.join(' ');
+      out.suffix = tail.suffix || head.suffix;
+      const words = tail.words;
+      if (words.length > 1 && isInitial(words[words.length - 1])) out.middle = bare(words.pop());
+      out.first = words.join(' ');
+      return out;
+    }
+    const taken = takeSuffix(text.split(' '));
+    const words = taken.words;
+    out.suffix = taken.suffix;
+    if (!words.length) return out;
+    let i = words.length - 1;
+    for (;;) {
+      const prev = words[i - 1];
+      const prev2 = words[i - 2];
+      if (i >= 2 && (prev === 'LA' || prev === 'LOS') && prev2 === 'DE') { i -= 2; continue; }
+      if (i >= 1 && PARTICLES.indexOf(bare(prev)) >= 0) { i -= 1; continue; }
+      break;
+    }
+    out.last = words.slice(i).join(' ');
+    const before = words.slice(0, i);
+    if (before.length > 1 && isInitial(before[before.length - 1])) out.middle = bare(before.pop());
+    out.first = before.join(' ');
+    return out;
+  }
+
+  // The corrected_value an officer types: LAST | FIRST | MIDDLE | SUFFIX (four parts; middle and suffix may be empty).
+  // Returns null when it does not have that shape or has no last or first name.
+  function parseNameParts(corrected) {
+    const cells = String(corrected === undefined || corrected === null ? '' : corrected).split('|');
+    if (cells.length !== 4) return null;
+    const v = cells.map((c) => tidy(c).toUpperCase());
+    if (v[0] === '' || v[1] === '') return null;
+    return { last: v[0], first: v[1], middle: v[2], suffix: v[3] };
+  }
+
   return {
+    proposeNameParts: proposeNameParts, parseNameParts: parseNameParts, DECISIONS: DECISIONS,
     normalizeName: normalizeName, matchMaster: matchMaster, matchOfficer: matchOfficer, looksLikeNote: looksLikeNote,
     parseDate: parseDate, parseGrade: parseGrade, splitUniform: splitUniform, mapStatus: mapStatus,
     checkRow: checkRow, findDuplicates: findDuplicates, hash: hash, editDistance: editDistance, near: near,

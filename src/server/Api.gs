@@ -17,6 +17,7 @@ const Api = (function () {
       typeof ImportReviewService !== 'undefined' ? ImportReviewService.methods() : {},
       typeof PersonService !== 'undefined' ? PersonService.methods() : {},
       typeof TlService !== 'undefined' ? TlService.methods() : {},
+      typeof ImportService !== 'undefined' ? ImportService.methods() : {},
     ];
     sources.forEach((s) => Object.keys(s).forEach((k) => { reg[k] = s[k]; }));
     return reg;

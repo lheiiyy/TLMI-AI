@@ -253,3 +253,29 @@ widthly('a correction is a new row with its reason, and the old row stays in the
   await expect(timeline).toContainText('ISTV 88');
   await expect(timeline.locator('li.corrected')).toHaveCount(2);
 });
+
+widthly('a certification check is corrected with a reason and the final is recomputed', async (page) => {
+  await openTl(page, 'supervisor', ID.cruz);
+  const before = await apiFromPage(page, 'tl.get', { id: ID.cruz });
+  const oldFinal = before.data.attempts[0].final_grade;
+  const oldChecklist = before.data.attempts[0].scores.checklist;
+  await page.click('[data-action="tl.recordCertCheck"]');
+  // the form is the correction form: it asks for a reason
+  await expect(page.locator('[data-form="tl.recordCertCheck"]')).toContainText('Correct the certification check');
+  // the reason is required
+  await fillForm(page, { checklist: 80 });
+  await page.click('[data-form="tl.recordCertCheck"] button[type="submit"]');
+  await expect(page.locator('[data-form="tl.recordCertCheck"] [data-slot="form-message"]')).toContainText('Check the marked fields');
+  await fillForm(page, { correction_reason: 'Checklist re-marked by the supervisor' });
+  await page.click('[data-form="tl.recordCertCheck"] button[type="submit"]');
+  await expect(page.locator('[data-slot="message"]')).toContainText('Correction saved. The final grade was recomputed by the server.');
+  // the server recomputed the final and kept the old row
+  const after = await apiFromPage(page, 'tl.get', { id: ID.cruz });
+  expect(after.data.attempts[0].scores.checklist).toBe(80);
+  expect(after.data.attempts[0].final_grade).not.toBe(oldFinal);
+  expect(after.data.attempts[0].corrections).toBeGreaterThan(0);
+  expect(oldChecklist).not.toBe(80);
+  await expect(page.locator('[data-slot="checks"]')).toContainText('80');
+  await page.click('[data-tab="history"]');
+  await expect(page.locator('[data-slot="timeline"]')).toContainText('Checklist re-marked by the supervisor');
+});

@@ -45,6 +45,7 @@ const AuthService = (function () {
     'tl.enroll': ALL, 'tl.update': ALL, 'tl.recordEntryGrade': ALL,
     'tl.recordCertCheck': ALL, 'tl.certify': ALL, 'tl.extend': ALL, 'tl.close': ALL, 'tl.quit': ALL,
     'tl.returnToProbation': [SUPERVISOR, MANAGER, SENIOR], 'tl.promote': [SUPERVISOR, MANAGER, SENIOR],
+    'import.validate': [ADMIN], 'import.get': [ADMIN], 'import.rows.list': [ADMIN], 'import.rows.skip': [ADMIN], 'import.commit': [ADMIN],
     'audit.list': [SENIOR, ADMIN],
     'history.get': [ADMIN],
   };
