@@ -3,6 +3,8 @@
 // dates are yyyy-mm-dd text and the calendar arithmetic is done by hand.
 const TlRules = (function () {
   const OPEN = ['Entry', 'Probationary', 'Certification check', 'Extended'];
+  // RULE-100 (one open enrollment per person): only these are closed; Certified still counts as open there.
+  const CLOSED = ['Failed', 'Quit', 'Promoted'];
   const SUPERVISOR_UP = ['Training Supervisor', 'Training Manager', 'Senior Training Manager'];
   const OFFICER_ACTION_ROLES = ['Training Officer', 'Training Supervisor', 'Training Manager', 'Senior Training Manager', 'Admin'];
 
@@ -154,6 +156,6 @@ const TlRules = (function () {
 
   return {
     deadline: deadline, addDays: addDays, round2: round2, inForce: inForce, entryState: entryState, finalGrade: finalGrade,
-    decide: decide, overdue: overdue, OPEN: OPEN, SUPERVISOR_UP: SUPERVISOR_UP,
+    decide: decide, overdue: overdue, OPEN: OPEN, CLOSED: CLOSED, SUPERVISOR_UP: SUPERVISOR_UP,
   };
 })();

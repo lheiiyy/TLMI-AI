@@ -427,3 +427,61 @@ test('no password, hash, salt or token appears in a Team Leader response or audi
   for (const k of ['password_hash', 'salt', 'hmac-sha256', env.PASSWORD]) assert.ok(!out.includes(k), k);
   assert.ok(!JSON.stringify(rows(env, 'audit_log').filter((a) => a.event.startsWith('TL.'))).includes('hmac-sha256'));
 });
+
+// ---- Round 2 (Reviewer's MAJOR 1): TLMI-001 before its first version, and the safety net ------------------------------
+test('a check dated before the first TLMI-001 version uses version 1 (pass mark 90), not the safety net', () => {
+  const env = setupTl();
+  const id = env.probationary({ entry_date: '2026-10-01' });
+  const d = env.certOk(id, { assessed_on: '2026-10-05', course_program: 40 });
+  assert.equal(d.course_pass_mark, 90);
+  assert.ok(d.allowed_actions.includes('extend') && !d.allowed_actions.includes('certify'));
+  const r = env.act('tl.certify', id);
+  assert.deepEqual([r.error.code, r.error.rule_id], ['BLOCKED_BY_RULE', 'RULE-102']);
+  assert.equal(env.get(id).data.course_pass_mark, 90);
+  // With a course grade of 90 the same kind of record certifies.
+  const id2 = env.probationary({ person: { last_name: 'Reyes', first_name: 'Ana' }, entry_date: '2026-10-01' });
+  env.certOk(id2, { assessed_on: '2026-10-05', course_program: 90 });
+  assert.equal(env.act('tl.certify', id2).ok, true);
+});
+
+test('a TLMI-001 version 2 effective today does not change a check dated before today', () => {
+  const env = setupTl();
+  const v1 = env.rows('settings').find((s) => s.setting_key === 'TLMI-001');
+  env.g('Repository').transact((uow) => {
+    uow.insert('settings', { setting_key: 'TLMI-001', value: '50', value_type: 'int', version: 2, effective_from: '2026-10-20', supersedes_id: v1.id }, env.actor);
+  });
+  const id = env.probationary({ entry_date: '2026-10-01' });
+  assert.equal(env.certOk(id, { assessed_on: '2026-10-05', course_program: 60 }).course_pass_mark, 90, 'version 1 applies before version 2');
+  assert.equal(env.act('tl.certify', id).error.rule_id, 'RULE-102');
+  const id2 = env.probationary({ person: { last_name: 'Reyes', first_name: 'Ana' }, entry_date: '2026-10-10' });
+  assert.equal(env.certOk(id2, { assessed_on: '2026-10-20', course_program: 60 }).course_pass_mark, 50, 'version 2 applies today');
+  assert.equal(env.act('tl.certify', id2).ok, true);
+});
+
+test('the safety net is kept: with no TLMI-001 version at all, a recorded course grade of 10 certifies', () => {
+  const env = setupTl();
+  const sh = env.sheet('settings');
+  const v = sh.getDataRange().getValues();
+  const col = v[0].indexOf('setting_key');
+  const row = v.findIndex((r, i) => i > 0 && r[col] === 'TLMI-001') + 1;
+  assert.ok(row > 0);
+  sh.deleteRows(row, 1);
+  const id = env.probationary({ entry_date: '2026-10-01' });
+  const d = env.certOk(id, { assessed_on: '2026-10-05', course_program: 10 });
+  assert.equal(d.course_pass_mark, null);
+  assert.equal(env.act('tl.certify', id).ok, true);
+});
+
+// ---- Round 2 (Reviewer's MINOR 2): RULE-100 counts Certified as open ----------------------------------------------------
+test('a Certified person cannot be enrolled again until Promoted (RULE-100)', () => {
+  const env = setupTl();
+  const id = env.probationary({ entry_date: '2026-10-10' });
+  const personId = env.get(id).data.enrollment.person_id;
+  env.certOk(id);
+  assert.equal(env.act('tl.certify', id).ok, true);
+  assert.equal(env.statusOf(id), 'Certified');
+  const blocked = env.enroll({ person: undefined, person_id: personId });
+  assert.deepEqual([blocked.error.code, blocked.error.rule_id], ['BLOCKED_BY_RULE', 'RULE-100']);
+  assert.equal(env.act('tl.promote', id, { promoted_on: '2026-10-20' }, env.t.supervisor).ok, true);
+  assert.equal(env.enroll({ person: undefined, person_id: personId }).ok, true);
+});

@@ -31,9 +31,11 @@ const TlService = (function () {
   function weightsVersion(onDate) {
     return ['CFG-041', 'CFG-044', 'CFG-045'].map((k) => k + '@v' + settingRow(k, onDate).version).join(';');
   }
-  // TLMI-001 has no fallback: when no version is in force on the date, a recorded course grade is enough (spec 7.5).
+  // Same fallback as settingRow: the version in force on the date, else the first version (a rule that has never changed
+  // applied from the start). null (the safety net, spec 7.5) means the database has no TLMI-001 version at all, so a
+  // recorded course grade is enough.
   function coursePassMark(onDate) {
-    const row = SettingsService.inForce('TLMI-001', onDate);
+    const row = SettingsService.inForce('TLMI-001', onDate) || SettingsService.versions('TLMI-001')[0];
     return row ? Number(row.value) : null;
   }
   function extensionLimit() {
@@ -220,7 +222,8 @@ const TlService = (function () {
     if (onDate < e.entry_date || onDate > Clock.today()) throw bad(path, 'RANGE', 'The date must be from the entry date to today.');
   }
   function hasOpen(uow, personId) {
-    return uow.all('tl_enrollments').some((x) => x.person_id === personId && TlRules.OPEN.indexOf(x.status) >= 0);
+    // RULE-100: only Failed, Quit and Promoted are closed; Certified still counts as open here.
+    return uow.all('tl_enrollments').some((x) => x.person_id === personId && TlRules.CLOSED.indexOf(x.status) < 0);
   }
 
   function enroll(ctx, p) {
@@ -482,6 +485,11 @@ const TlService = (function () {
   }
 
   // ---- reads --------------------------------------------------------------------------------------------------------
+  // Sort key for the roster: last name, first name, middle name (each normalised), so the list reads by last name.
+  function sortName(per) {
+    return [per.last_name, per.first_name, per.middle_name].map((x) => ImportRules.normalizeName(x)).join('|');
+  }
+
   function baseRows() {
     const cacheKey = 'tl:list:' + (Props.get(DATA_VERSION) || '0');
     const hit = CacheStore.get(cacheKey);
@@ -500,7 +508,7 @@ const TlService = (function () {
         aliases.filter((a) => a.person_id === e.person_id && a.alias_type === 'NAME').map((a) => ImportRules.normalizeName(a.value)),
         ImportRules.normalizeName(per.last_name + ' ' + per.first_name)).join(' | ');
       return {
-        id: e.id, person_id: e.person_id, name: name, search_text: search, mother_location_id: e.mother_location_id,
+        id: e.id, person_id: e.person_id, name: name, sort_name: sortName(per), search_text: search, mother_location_id: e.mother_location_id,
         store: stores[e.mother_location_id] || '', station_id: e.station_id, station: stations[e.station_id] || '',
         batch_code: e.batch_code, entry_date: e.entry_date, deadline: e.deadline, status: e.status, final_grade: e.final_grade,
         open: TlRules.OPEN.indexOf(e.status) >= 0,
@@ -515,11 +523,18 @@ const TlService = (function () {
     const rows = baseRows().map((r) => Object.assign({}, r, { overdue: TlRules.overdue(r.status, r.deadline, today) }));
     const q = p.q ? ImportRules.normalizeName(p.q) : '';
     const params = Object.assign({}, p, { q: q });
+    // sort 'name' (or '-name') sorts on sort_name; sort_name is not sortable by the caller and is never returned.
+    if (typeof params.sort === 'string') {
+      const base = params.sort.replace(/^-/, '');
+      const dir = params.sort.charAt(0) === '-' ? '-' : '';
+      if (base === 'name') params.sort = dir + 'sort_name';
+      else if (base === 'sort_name') params.sort = dir + 'not_sortable';
+    }
     const res = Lists.run(rows, params, {
       filters: ['status', 'mother_location_id', 'station_id', 'batch_code', 'open', 'overdue'],
-      search: ['search_text'], sortable: ['deadline', 'entry_date', 'name'], defaultSort: 'deadline',
+      search: ['search_text'], sortable: ['deadline', 'entry_date', 'sort_name'], defaultSort: 'deadline',
     });
-    return Api.paged(res.items.map((r) => { const c = Object.assign({}, r); delete c.search_text; return c; }), res.page);
+    return Api.paged(res.items.map((r) => { const c = Object.assign({}, r); delete c.search_text; delete c.sort_name; return c; }), res.page);
   }
 
   function history(ctx, p) {

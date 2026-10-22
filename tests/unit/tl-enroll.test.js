@@ -197,7 +197,10 @@ test('tl.list pages, filters overdue and searches an alias', () => {
   const p1 = list({ page: 1, page_size: 2 });
   assert.deepEqual([p1.data.length, p1.meta.page.total], [2, 3]);
   assert.equal(list({ page: 2, page_size: 2 }).data.length, 1);
-  assert.deepEqual(list({ sort: 'name' }).data.map((r) => r.name), ['Ana Reyes', 'Bea Santos', 'Carla Lopez']);
+  assert.deepEqual(list({ sort: 'name' }).data.map((r) => r.name), ['Carla Lopez', 'Ana Reyes', 'Bea Santos'], 'sort name is by last name');
+  assert.deepEqual(list({ sort: '-name' }).data.map((r) => r.name), ['Bea Santos', 'Ana Reyes', 'Carla Lopez']);
+  assert.equal(list({ sort: 'sort_name' }).error.code, 'VALIDATION', 'the sort key is not a caller field');
+  assert.ok(!('sort_name' in list({ sort: 'name' }).data[0]));
   assert.deepEqual(list({ sort: '-entry_date' }).data.map((r) => r.entry_date), ['2026-10-20', '2026-10-19', '2026-06-01']);
   assert.equal(list({ page_size: 51 }).error.code, 'VALIDATION');
   assert.equal(list({ filters: { final_grade: 1 } }).error.code, 'VALIDATION');
@@ -273,4 +276,14 @@ test('every TL write raises the data version, writes an audit row with the spec 
   const events = env.rows('audit_log').map((a) => a.event);
   assert.ok(events.includes('TL.ENROLLED') && events.includes('TL.ENTRY_GRADE_RECORDED'));
   assert.notEqual(env.g('Props').get('TL_DATA_VERSION'), v0);
+});
+
+test('tl.list sorted by name runs by last name, then first name', () => {
+  const env = setupTl();
+  env.enrollOk({ person: { last_name: 'Reyes', first_name: 'Ana' } });
+  env.enrollOk({ person: { last_name: 'Dela Cruz', first_name: 'Juan' } });
+  env.enrollOk({ person: { last_name: 'Aquino', first_name: 'Zed' } });
+  env.enrollOk({ person: { last_name: 'Reyes', first_name: 'Aaron' } });
+  const names = env.call('tl.list', { sort: 'name' }, env.t.officer).data.map((r) => r.name);
+  assert.deepEqual(names, ['Zed Aquino', 'Juan Dela Cruz', 'Aaron Reyes', 'Ana Reyes']);
 });
