@@ -205,3 +205,81 @@ test('no response, audit row, history row or log line contains a password or a h
     assert.ok(needle && !all.includes(needle), 'found a value that must not be stored: ' + String(needle).slice(0, 6));
   }
 });
+
+// ---- auth.changePassword shares the per-user counter and the pause of sign-in (Reviewer decision on PR #20)
+
+test('five wrong current passwords pause the user: the fifth is AUTH_LOCKED, and sign-in is locked too', () => {
+  const env = setupApi();
+  const token = env.signIn('officer');
+  const change = (current) => env.call('auth.changePassword', { current: current, new: 'brand-new-pass-7' }, token);
+  for (let i = 1; i <= 4; i++) assert.equal(change(WRONG).error.code, 'AUTH_FAILED');
+  assert.equal(user(env, 'officer').failed_attempts, 4);
+  const fifth = change(WRONG);
+  assert.equal(fifth.error.code, 'AUTH_LOCKED');
+  assert.equal(fifth.error.retry_after, 900);
+  assert.equal(env.signInRaw('officer').error.code, 'AUTH_LOCKED');
+  // the open session stays valid for other calls
+  assert.equal(env.call('auth.me', {}, token).ok, true);
+});
+
+test('while paused, changePassword is AUTH_LOCKED with retry_after and computes no hash', () => {
+  const env = setupApi();
+  const token = env.signIn('officer');
+  for (let i = 1; i <= 5; i++) env.signInRaw('officer', WRONG);
+  env.minutes(5);
+  let calls = 0;
+  const H = env.g('Hasher');
+  const hash = H.hash;
+  const verify = H.verify;
+  H.verify = (...a) => { calls++; return verify(...a); };
+  H.hash = (...a) => { calls++; return hash(...a); };
+  const res = env.call('auth.changePassword', { current: env.PASSWORD, new: 'brand-new-pass-7' }, token);
+  assert.equal(res.error.code, 'AUTH_LOCKED');
+  assert.equal(res.error.retry_after, 600);
+  assert.equal(calls, 0);
+  assert.ok(env.auditRows().some((r) => r.event === 'AUTH.PASSWORD_CHANGE.FAILED' && r.result === 'DENIED'));
+});
+
+test('wrong sign-in passwords and wrong current passwords share one count', () => {
+  const env = setupApi();
+  const token = env.signIn('officer');
+  const change = (current) => env.call('auth.changePassword', { current: current, new: 'brand-new-pass-7' }, token);
+  env.signInRaw('officer', WRONG);
+  env.signInRaw('officer', WRONG);
+  assert.equal(change(WRONG).error.code, 'AUTH_FAILED');
+  assert.equal(user(env, 'officer').failed_attempts, 3);
+  env.signInRaw('officer', WRONG);
+  assert.equal(change(WRONG).error.code, 'AUTH_LOCKED');
+});
+
+test('a successful change clears the counters', () => {
+  const env = setupApi();
+  const token = env.signIn('officer');
+  const change = (current, next) => env.call('auth.changePassword', { current: current, new: next }, token);
+  for (let i = 1; i <= 3; i++) assert.equal(change(WRONG, 'brand-new-pass-7').error.code, 'AUTH_FAILED');
+  assert.equal(user(env, 'officer').failed_attempts, 3);
+  assert.equal(change(env.PASSWORD, 'brand-new-pass-7').ok, true);
+  const u = user(env, 'officer');
+  assert.ok(!u.failed_attempts && !u.cooldown_until);
+});
+
+test('a new password that fails FX-002 is a validation error and is not counted', () => {
+  const env = setupApi();
+  const token = env.signIn('officer');
+  const r = env.call('auth.changePassword', { current: env.PASSWORD, new: 'short1a' }, token);
+  assert.equal(r.error.code, 'VALIDATION');
+  assert.ok(!user(env, 'officer').failed_attempts);
+});
+
+test('the audit cap of 50 per user and day is shared by sign-in and change-password failures', () => {
+  const env = setupApi();
+  const token = env.signIn('officer');
+  const setting = (k, v) => env.g('Repository').transact((uow) => uow.insert('settings', { setting_key: k, value: v, value_type: 'int', version: 1, effective_from: '2026-10-01' }, env.actor));
+  setting('CFG-002', '1000');
+  for (let i = 1; i <= 30; i++) env.signInRaw('officer', WRONG);
+  for (let i = 1; i <= 30; i++) env.call('auth.changePassword', { current: WRONG, new: 'brand-new-pass-7' }, token);
+  const events = env.auditRows().map((r) => r.event);
+  assert.equal(events.filter((e) => e === 'AUTH.SIGNIN.FAILED').length, 30);
+  assert.equal(events.filter((e) => e === 'AUTH.PASSWORD_CHANGE.FAILED').length, 20);
+  assert.equal(user(env, 'officer').failed_attempts, 60);
+});

@@ -221,9 +221,21 @@ const AuthService = (function () {
     return Object.assign({ token: token }, sessionInfo(rec));
   }
 
+  // A wrong current password counts on the same per-user counter as a wrong sign-in password and starts the same pause
+  // (Reviewer decision on PR #20, finding 1). While the user is paused the call is refused before any hash is computed.
   function changePassword(ctx, p) {
     const u = Repository.get('users', ctx.userId);
-    if (!u || !u.password_hash || !u.salt || !Hasher.verify(p.current, u.salt, pepper(), u.password_hash)) {
+    if (!u) throw new AppError('AUTH_FAILED', 'The current password is not correct.');
+    const now = Clock.ms();
+    if (u.cooldown_until && Clock.parse(u.cooldown_until) > now) {
+      auditFailure(ctx, u, 'AUTH.PASSWORD_CHANGE.FAILED');
+      throw locked(Math.ceil((Clock.parse(u.cooldown_until) - now) / 1000));
+    }
+    const ok = !!u.password_hash && !!u.salt && Hasher.verify(p.current, u.salt, pepper(), u.password_hash);
+    if (!ok) {
+      const out = recordFailure(ctx, u.id);
+      auditFailure(ctx, u, 'AUTH.PASSWORD_CHANGE.FAILED');
+      if (out.paused) throw locked(out.retry);
       throw new AppError('AUTH_FAILED', 'The current password is not correct.');
     }
     const bad = PasswordRules.error('new', p.new, p.current);
@@ -232,6 +244,8 @@ const AuthService = (function () {
     const patch = { password_hash: cred.password_hash, salt: cred.salt, must_change_password: false };
     Repository.transact((uow) => {
       const cur = uow.get('users', ctx.userId);
+      if (cur.failed_attempts) patch.failed_attempts = 0;
+      if (cur.cooldown_until) patch.cooldown_until = null;
       const r = uow.update('users', ctx.userId, patch, { expectedVersion: cur.row_version, actor: { userId: ctx.userId, now: ctx.now } });
       AuditService.changes(uow, ctx, 'users', ctx.userId, r.before, r.after);
       AuditService.event(uow, ctx, { event: 'AUTH.PASSWORD_CHANGED', entity: 'users', entityId: ctx.userId });
