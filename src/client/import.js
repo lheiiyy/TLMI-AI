@@ -65,7 +65,7 @@
         h('dl', { class: 'kv' },
           h('dt', {}, 'Rows needing action'), h('dd', {}, rec.unresolved_rows),
           h('dt', {}, 'Reconciled'), h('dd', { 'data-slot': 'reconciled' }, rec.reconciled ? 'Yes' : 'Not yet'),
-          h('dt', {}, 'Failed with Disqualified (expected, actual)'), h('dd', {}, rec.failed_disqualified.expected + ', ' + rec.failed_disqualified.actual)),
+          h('dt', {}, 'Disqualified (expected, actual)'), h('dd', {}, rec.failed_disqualified.expected + ', ' + rec.failed_disqualified.actual)),
         A.grid([{ label: 'Legacy result', key: 'legacy' }, { label: 'Rows', key: 'rows' }],
           Object.keys(rec.legacy_result_counts).sort().map((k) => ({ legacy: k, rows: rec.legacy_result_counts[k] })), 'Nothing counted.'),
         A.grid([{ label: 'Status in the app', key: 'status' }, { label: 'Expected', key: 'expected' }, { label: 'Actual', key: 'actual' }, { label: 'Agree', value: (r) => (r.agree ? 'Yes' : 'No') }],
