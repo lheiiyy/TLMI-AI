@@ -6,9 +6,13 @@ const { loadServer } = require('../helpers/loader');
 const PHASE_1 = ['brands', 'regions', 'locations', 'stations', 'lookups', 'assessment_components', 'settings',
   'users', 'audit_log', 'record_history', 'id_counters', 'import_batches'];
 
-test('Phase 1 defines exactly the twelve tables of spec section 7', () => {
+// Phase 2 part 2B adds the Team Leader tables (Phase 2 spec section 5).
+const PHASE_2B = ['persons', 'person_aliases', 'tl_enrollments', 'assessments', 'tl_extensions', 'tl_certifying_officers',
+  'status_history', 'import_rows'];
+
+test('Phase 1 defines its twelve tables of spec section 7, and part 2B adds exactly eight', () => {
   const { g, plain } = loadServer();
-  assert.deepEqual(plain(g('Schema').names()).sort(), PHASE_1.slice().sort());
+  assert.deepEqual(plain(g('Schema').names()).sort(), PHASE_1.concat(PHASE_2B).sort());
 });
 
 test('every table has id first and its profile columns last', () => {

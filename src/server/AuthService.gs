@@ -40,6 +40,11 @@ const AuthService = (function () {
     'settings.set': [ADMIN],
     'seed.run': [ADMIN],
     'importReview.run': [ADMIN], 'importReview.get': [ADMIN],
+    'persons.get': ALL, 'persons.matchCandidates': ALL,
+    'tl.list': ALL, 'tl.get': ALL, 'tl.history': ALL,
+    'tl.enroll': ALL, 'tl.update': ALL, 'tl.recordEntryGrade': ALL,
+    'tl.recordCertCheck': ALL, 'tl.certify': ALL, 'tl.extend': ALL, 'tl.close': ALL, 'tl.quit': ALL,
+    'tl.returnToProbation': [SUPERVISOR, MANAGER, SENIOR], 'tl.promote': [SUPERVISOR, MANAGER, SENIOR],
     'audit.list': [SENIOR, ADMIN],
     'history.get': [ADMIN],
   };
