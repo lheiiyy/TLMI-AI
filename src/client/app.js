@@ -121,6 +121,7 @@
     stopIdle();
     state.user = null;
     Api.setToken(null);
+    clear($('#main')); // a temporary-password box left open must not stay in the hidden page
     showSignIn(message, kind);
   }
 

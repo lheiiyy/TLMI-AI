@@ -162,7 +162,10 @@ test('Admin resets a password, sees it once, and the user\'s open session ends',
   await expect(users).toContainText('Password reset.');
   const temp = (await page.locator('[data-slot="temp-value"]').textContent()).trim();
   expect(temp).toMatch(/^[A-Za-z2-9]{12}$/);
-  await page.getByRole('button', { name: 'Done' }).click();
+  // the box is left open on purpose: Sign out must remove it from the page
+  await page.click('#signout');
+  await expect(page.locator('#screen-signin')).toBeVisible();
+  await expect(page.locator('[data-slot="temp-password"]')).toHaveCount(0);
   await expect(page.locator('#main')).not.toContainText(temp);
   // the other page's token no longer works
   await other.evaluate(() => { window.Api.call('brands.list').catch(() => {}); });
