@@ -223,6 +223,11 @@
 
   const allowed = (item) => !item.roles || item.roles.indexOf(state.user.role) >= 0;
 
+  // Other client scripts (tl.js) add their menu entry here; a first entry goes before the others. roles: null is everyone.
+  function registerNav(item, first) {
+    if (first) NAV.unshift(item); else NAV.push(item);
+  }
+
   function showApp() {
     showScreen('app');
     clear($('#who'));
@@ -774,5 +779,10 @@
   }
 
   window.TLMI = { start: start };
+  // What the other client scripts share. They still reach the server only through Api.
+  window.App = {
+    ROLE: ROLE, h: h, clear: clear, tpl: tpl, slot: slot, notice: notice, setMessage: setMessage, errText: errText,
+    grid: grid, fetchAll: fetchAll, registerNav: registerNav, user: () => state.user, go: go,
+  };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

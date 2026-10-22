@@ -112,3 +112,23 @@ test('each ID pattern is caught on its own', () => {
     fs.rmSync(src, { recursive: true, force: true });
   }
 });
+
+test('assembly inlines api.js, app.js, then other client scripts in name order and stops on a closing script tag in any of them', () => {
+  const { assemblePage } = require('../../tools/assemble');
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'index.html'), '<!--STYLES--><!--VIEWS--><!--SCRIPTS-->');
+  fs.writeFileSync(path.join(dir, 'styles.css'), 'body{}');
+  // written in an order that is not the expected one, with names that sort before and after app.js
+  fs.writeFileSync(path.join(dir, 'zeta.js'), '/*Z*/');
+  fs.writeFileSync(path.join(dir, 'app.js'), '/*APP*/');
+  fs.writeFileSync(path.join(dir, 'alpha.js'), '/*ALPHA*/');
+  fs.writeFileSync(path.join(dir, 'api.js'), '/*API*/');
+  fs.writeFileSync(path.join(dir, 'tl.js'), '/*TL*/');
+  const page = assemblePage(dir, 'mock');
+  const at = (s) => page.indexOf(s);
+  assert.ok([at('/*API*/'), at('/*APP*/'), at('/*ALPHA*/'), at('/*TL*/'), at('/*Z*/')].every((n) => n > 0), 'every script is inlined');
+  assert.ok(at('/*API*/') < at('/*APP*/') && at('/*APP*/') < at('/*ALPHA*/') && at('/*ALPHA*/') < at('/*TL*/') && at('/*TL*/') < at('/*Z*/'), 'order: api, app, then by name');
+  fs.writeFileSync(path.join(dir, 'tl.js'), 'var s = "</script>";');
+  assert.throws(() => assemblePage(dir, 'mock'), /closing script tag: tl\.js/);
+  fs.rmSync(dir, { recursive: true, force: true });
+});

@@ -10,9 +10,13 @@ function assemblePage(srcDir, transport) {
   const views = fs.existsSync(viewsDir)
     ? fs.readdirSync(viewsDir).filter((f) => f.endsWith('.html')).sort().map((f) => read(path.join('views', f))).join('\n')
     : '';
-  const scripts = [read('api.js'), read('app.js')];
+  // Every src/client/*.js file: api.js first, then app.js, then the others in name order.
+  const first = ['api.js', 'app.js'];
+  const others = fs.readdirSync(srcDir).filter((f) => f.endsWith('.js') && first.indexOf(f) < 0).sort();
+  const names = first.concat(others);
+  const scripts = names.map((n) => read(n));
   scripts.forEach((s, i) => {
-    if (/<\/script/i.test(s)) throw new Error('A client script contains a closing script tag: ' + ['api.js', 'app.js'][i]);
+    if (/<\/script/i.test(s)) throw new Error('A client script contains a closing script tag: ' + names[i]);
   });
   const css = read('styles.css');
   if (/<\/style/i.test(css)) throw new Error('styles.css contains a closing style tag');
@@ -20,7 +24,7 @@ function assemblePage(srcDir, transport) {
   return read('index.html')
     .replace('<!--STYLES-->', () => '<style>\n' + css + '\n</style>')
     .replace('<!--VIEWS-->', () => views)
-    .replace('<!--SCRIPTS-->', () => '<script>window.TLMI_TRANSPORT = ' + JSON.stringify(transport) + ';</script>\n<script>\n' + scripts[0] + '\n</script>\n<script>\n' + scripts[1] + '\n</script>');
+    .replace('<!--SCRIPTS-->', () => '<script>window.TLMI_TRANSPORT = ' + JSON.stringify(transport) + ';</script>\n<script>\n' + scripts[0] + '\n</script>\n' + scripts.slice(1).map((c) => '<script>\n' + c + '\n</script>').join('\n'));
 }
 
 module.exports = { assemblePage };
