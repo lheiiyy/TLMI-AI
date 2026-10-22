@@ -309,6 +309,8 @@ Upper case, trimmed, spaces collapsed. `LAST, FIRST MIDDLE` when the cell has a 
 | S DATE CERTIFIED | `certified_on` for Certified and Promoted; for other statuses it is only the check date of T and U |
 | W STATUS, I Uniform Release | not imported in Phase 2; kept in `import_rows.raw` for Phase 3 |
 
+A grade in T or U with no value in S is not imported. The row gets the warning `CERT_GRADE_NO_DATE` (it is not an error and does not block the commit), and the value stays in `import_rows.raw`. The import never invents an assessment date.
+
 Each imported enrollment has `legacy_ref` = `MASTER_LOG!<row>#<row hash>`, each imported person `LEGACY:<normalised name>`, and one `status_history` row from empty to its status, dated `certified_on` or the entry date, with the remark "Legacy import <IMP id> row <n>". Audit: one `IMPORT.COMMITTED` row per commit call with the counts, and one `TL.ENROLLED` row per enrollment with detail `{source: 'LEGACY_IMPORT', import_id}`.
 
 ### 10.6 Reconciliation
