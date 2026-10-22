@@ -35,6 +35,14 @@ Gate G0 decisions were closed on **2026-10-19** by adopting the TDMS answer. TLM
 | P2-6 | Admin does the officer actions (enroll, update, entry grades, certification check, certify, extend, fail, quit) and reads every Team Leader record. Admin does not promote or return to probation (TDMS PERM-031 and 032 are "?" for Admin: TLMI takes this answer and reports it to TDMS for PH-12). | Phase 2 design P2-6 |
 | P2-14 | Admin sets the extension limit (CFG-047) and the quit reasons (CFG-018) in the app; no code change is needed. | Phase 2 design §12, answer 3 |
 
+## Decided by the Reviewer on 2026-10-22 (Phase 2 pull request F)
+
+| # | Decision | Reference |
+| --- | --- | --- |
+| P2-15 | For CFG-040, CFG-041, CFG-042, CFG-044, CFG-045 and TLMI-001 the version in force on a date is the highest version whose `effective_from` is not after that date; when the date is before the first version, the first version applies (a rule that has never changed applied from the start). The TLMI-001 safety net (a recorded course grade is enough) applies only when the database has no TLMI-001 version at all. CFG-047 is read as "in force today". | Phase 2 design §7.1, §7.5 |
+| P2-16 | For RULE-100 only Failed, Quit and Promoted are closed; Certified still blocks a new enrollment until the record is Promoted. `TlRules.OPEN` is unchanged for grading, overdue and the list flag. The import's `OPEN_TWICE` uses the same rule (pull request H). | Phase 2 design §7.1 |
+| P2-17 | `tl.update` is allowed in every status and changes only the six fields of §6 (each with a `record_history` row). The entry average is `null` until every required entry grade is in. A grade write does not raise the enrollment's `row_version` unless the status moves; a stale `row_version` is still checked; a second call for the same component needs a `correction_reason`. `tl.list` sorted by `name` runs by last name, first name, middle name, then id. | Phase 2 design §6, §7.2 |
+
 ## Known platform limits (TLMI only)
 
 | # | Limit | Mitigation | Reference |

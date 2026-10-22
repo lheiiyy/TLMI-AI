@@ -169,15 +169,15 @@ Lists are cached (CLAUDE.md): `tl.list` keeps its joined base rows in `CacheServ
 
 ### 7.1 Enroll (RULE-100)
 
-- The person must have no open enrollment (`BLOCKED_BY_RULE` RULE-100). A closed one is fine (re-enrollment, D068).
-- `entry_date` is not after today. `deadline` = `entry_date` + CFG-040 months in force on the entry date; when the day does not exist in the target month, the last day of that month is used (30 Nov + 3 months = 28 or 29 Feb).
+- The person must have no open enrollment (`BLOCKED_BY_RULE` RULE-100). A record in Failed, Quit or Promoted is closed; Certified still counts as open here (decided 2026-10-22, P2-16). A closed one is fine (re-enrollment, D068).
+- `entry_date` is not after today. `deadline` = `entry_date` + CFG-040 months in force on the entry date (when the date is before the first version, the first version applies, P2-15); when the day does not exist in the target month, the last day of that month is used (30 Nov + 3 months = 28 or 29 Feb).
 - The store must be an active Store location; the station an active station of the brand. Status `Entry`. One `status_history` row (from empty to Entry).
 
 ### 7.2 Entry grades (RULE-101)
 
 - The required entry components are the active `entry` components with `required` = true (five by default, D064). A grade is in force when no other row supersedes it (TDMS D072).
 - `assessed_on` of an entry grade is not after today and not before the entry date (as in §7.4).
-- The entry average shown on screen is the mean of the grades in force for the required components, rounded to 2 decimals. It is computed on read, never stored or typed.
+- The entry average shown on screen is the mean of the grades in force for the required components, rounded to 2 decimals. It is computed on read, never stored or typed, and it is `null` until every required entry grade is in (a screen shows "n of 5 recorded", P2-17). A grade write does not raise the enrollment's `row_version` unless the status moves; a stale `row_version` is still refused, and a second call for a component that already has a grade needs a `correction_reason` (P2-17).
 - Legacy records follow the normal rules from the import onwards: P2-11 exempts only the imported values. An imported open record that lacks entry grades gets them recorded (backdated within the bounds above) before its first certification check.
 - **X-2:** when the call saves the last missing required grade and the status is Entry, the status becomes Probationary in the same transaction.
 
@@ -195,7 +195,7 @@ final = (w_checklist x checklist + w_exam x exam + w_feedback x feedback) / 100,
 
 ### 7.5 Certify
 
-From Certification check, when the latest attempt's final is at or above the pass mark and a TL course program grade is in force (`BLOCKED_BY_RULE` RULE-102 otherwise). The course program grade must be at or above the course pass mark TLMI-001 (90, §12 question 5), checked with the setting in force on the check date. Safety net: when no TLMI-001 version is in force (a database seeded before this change, until the seed is run again), the grade only has to be recorded. Sets Certified, `certified_on` = the attempt's `assessed_on`, and stamps `pass_mark_used` and `weights_version` (D008). No approval step (D067).
+From Certification check, when the latest attempt's final is at or above the pass mark and a TL course program grade is in force (`BLOCKED_BY_RULE` RULE-102 otherwise). The course program grade must be at or above the course pass mark TLMI-001 (90, §12 question 5), checked with the setting in force on the check date. The version in force on the check date is used; when the date is before the first version, the first version applies (P2-15). Safety net: when the database has no TLMI-001 version at all (a database seeded before this change, until the seed is run again), the grade only has to be recorded. Sets Certified, `certified_on` = the attempt's `assessed_on`, and stamps `pass_mark_used` and `weights_version` (D008). No approval step (D067).
 
 ### 7.6 Extend (RULE-104)
 

@@ -17,6 +17,8 @@
 - Phase 1 pull request B merged (#5, merge commit c1e8cce): API entry, interim sign-in, permission table, master data, settings, users.
 - Phase 1 pull request C merged (#6, merge commit f1d54b1): seed, import rules, import review dry run.
 - Phase 1 pull request D merged (#7, merge commit ec4753a): setup functions with the editor guard, dev server and sign-in, home and Admin screens, deploy tool, setup guide, G1 checklist, CI. All four Phase 1 pull requests (#4 to #7) are merged; the reviewer approved each one.
+- Pull request #18 (docs: both cloud tasks deleted) merged on the Reviewer's `VERDICT: APPROVED` for head 02fe72c: merge commit d632749.
+- Phase 2 pull request F round 2: TLMI-001 falls back to its first version for earlier dates (safety net only when no version exists), a Certified person cannot be enrolled again until Promoted (RULE-100), `tl.list` sort `name` runs by last name; 414 unit tests.
 - STATUS pull request merged (#8, merge commit 78ab694). Browser test stability (issue #13): the sign-in screen showed its name list empty for a moment, and the test `lists active officers` read it too early; `fresh()` now waits for the names, and a test with a slow list keeps it from coming back.
 - Spreadsheets created by the reviewer in one Drive folder, "TLMI-AI": a dated copy of the legacy sheet with a `SEED_OFFICERS` tab, `TLMI_DB_DEV`, `TLMI_DB_TEST`, `TLMI_IMPORT_REVIEW_TEST`. IDs are not in the repo; Leo puts them in Script Properties.
 - Phase 2 pull request E merged (#20, merge commit 31ebec0, on the Reviewer's `VERDICT: APPROVED` for head 19c14d8): Employee ID and password sign-in, per-user pause, session epochs, temporary passwords. Spec §4 amendment merged (#21, merge commit ea9b15b).
@@ -26,15 +28,14 @@
 ## Next
 
 - Leo does the one-time setup on DEV and TEST in [docs/SETUP.md](SETUP.md) and runs the gate G1 checks in [docs/G1-CHECKLIST.md](G1-CHECKLIST.md). Phase 1 is complete in code; gate G1 is closed only after those checks, and after the timing from `measureHash` and the number format `0.######` have been looked at on TEST.
-- Phase 2 pull request F (tasks 8 to 12) waits for the Reviewer. Next: pull request G (tasks 13 and 14, screens and browser tests), then H (tasks 15 to 18, import), each from an updated `main`. Do not deploy: the `users` tab of an existing database needs four new columns first ([docs/SETUP.md](SETUP.md) section 3).
+- Phase 2 pull request F (tasks 8 to 12) is in round 2 (the Reviewer's findings are fixed, decisions P2-15 to P2-17 recorded) and waits for the Reviewer. Next: pull request G (tasks 13 and 14, screens and browser tests), then H (tasks 15 to 18, import), each from an updated `main`. Do not deploy: the `users` tab of an existing database needs four new columns first ([docs/SETUP.md](SETUP.md) section 3).
 - Admin sets the extension limit (CFG-047) and the quit reasons (CFG-018) in the app before the first extension and the first quit. Settle the probation start in TDMS before gate G2 (interim X-2).
 
 ## Blockers and open items
 
-- Pull request F, two points for the Reviewer to confirm: (1) when no version of CFG-040, CFG-041, CFG-042, CFG-044 or CFG-045 is in force on the entry date or check date (a date before the settings were first seeded), the first version applies; the spec says only "in force on the date". TLMI-001 has no such fallback (spec §7.5 safety net). (2) `TlRules.decide` also returns `CONFIG_MISSING` (key `CFG-047`) for `extend`, which `TlService` turns into the `CONFIG_MISSING` error.
 
 - Open items are listed in [docs/DECISIONS.md](DECISIONS.md) and in spec §12.
-- App code: the whole Phase 1 server, the client (sign-in, master lists, Admin screens) and the tools. 409 unit tests and 59 browser tests pass. Nothing is deployed yet.
+- App code: the whole Phase 1 server, the client (sign-in, master lists, Admin screens) and the tools. 414 unit tests and 59 browser tests pass. Nothing is deployed yet.
 - Branch `docs/scaffold` and the other merged branches could not be deleted from the Code session (the proxy refuses branch deletion); Leo can delete them on GitHub.
 - Interim exception X-1 (name list plus Admin PIN) is ended in code by Phase 2 part 2A (pull request E). It is marked ended in `docs/DECISIONS.md` when 2A is deployed to TEST; Leo records the date. No real Team Leader record is loaded before that.
 - `clasp` login, the DEV and TEST script projects and the Script Properties are set up by Leo once (see [docs/SETUP.md](SETUP.md)).
