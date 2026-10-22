@@ -36,6 +36,7 @@ const AuthService = (function () {
     'users.list': [ADMIN], 'users.get': [ADMIN], 'users.create': [ADMIN], 'users.update': [ADMIN],
     'users.deactivate': [ADMIN], 'users.reactivate': [ADMIN],
     'users.resetPassword': [ADMIN], 'users.clearCooldown': [ADMIN],
+    'persons.get': ALL, 'persons.matchCandidates': ALL,
     'settings.list': [MANAGER, SENIOR, ADMIN], 'settings.get': [MANAGER, SENIOR, ADMIN],
     'settings.set': [ADMIN],
     'seed.run': [ADMIN],

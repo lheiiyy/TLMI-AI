@@ -252,6 +252,6 @@ const ImportRules = (function () {
   return {
     normalizeName: normalizeName, matchMaster: matchMaster, matchOfficer: matchOfficer, looksLikeNote: looksLikeNote,
     parseDate: parseDate, parseGrade: parseGrade, splitUniform: splitUniform, mapStatus: mapStatus,
-    checkRow: checkRow, findDuplicates: findDuplicates, hash: hash, editDistance: editDistance,
+    checkRow: checkRow, findDuplicates: findDuplicates, hash: hash, editDistance: editDistance, near: near,
   };
 })();

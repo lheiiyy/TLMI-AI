@@ -15,6 +15,7 @@ const Api = (function () {
       AuditService.methods(),
       typeof SeedService !== 'undefined' ? SeedService.methods() : {},
       typeof ImportReviewService !== 'undefined' ? ImportReviewService.methods() : {},
+      typeof PersonService !== 'undefined' ? PersonService.methods() : {},
     ];
     sources.forEach((s) => Object.keys(s).forEach((k) => { reg[k] = s[k]; }));
     return reg;

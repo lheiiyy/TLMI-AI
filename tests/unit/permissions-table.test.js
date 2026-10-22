@@ -38,6 +38,8 @@ const EXPECTED = {
   'lookups.list': ['O', 'S', 'M', 'Sr', 'A'],
   'lookups.reactivate': ['A'],
   'lookups.update': ['A'],
+  'persons.get': ['O', 'S', 'M', 'Sr', 'A'],
+  'persons.matchCandidates': ['O', 'S', 'M', 'Sr', 'A'],
   'regions.create': ['A'],
   'regions.deactivate': ['A'],
   'regions.get': ['O', 'S', 'M', 'Sr', 'A'],
