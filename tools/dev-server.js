@@ -3,6 +3,7 @@
 //   GET  /            the page
 //   POST /api         one request envelope in, one out (tlmiApi)
 //   POST /__reset     start again from the initial invented data
+//   POST /__review-decisions  build the review sheet and give it the invented officer decisions (import tests)
 //   POST /__advance   { minutes } move the fake clock forward (session tests)
 // It listens on 127.0.0.1 only.
 const http = require('node:http');
@@ -35,6 +36,7 @@ function createServer() {
         return send(res, 200, 'application/json', JSON.stringify(env.handle(request)));
       }
       if (req.method === 'POST' && req.url === '/__reset') { env = createEnv(); return send(res, 200, 'application/json', '{"ok":true}'); }
+      if (req.method === 'POST' && req.url === '/__review-decisions') { env.reviewWithDecisions(); return send(res, 200, 'application/json', '{"ok":true}'); }
       if (req.method === 'POST' && req.url === '/__advance') {
         const body = JSON.parse((await readBody(req)) || '{}');
         env.google.clock.now += Number(body.minutes || 0) * 60000;

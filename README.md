@@ -6,7 +6,7 @@ TLMI-AI is a web app that replaces the "[sys] Team leader Monitoring" spreadshee
 
 ## Status
 
-**Phase 1: core data, sign-in and audit log (gate G1).** Master data, interim sign-in, the audit log, the seed and the import review dry run are built; the Admin and master-list screens run on localhost. See [docs/STATUS.md](docs/STATUS.md) for what is done and what is next.
+**Phase 2: Team Leader workflow and the legacy import (gate G2).** Phase 1 (master data, audit log, seed, import review) is built. Phase 2 adds employee ID and password sign-in, the Team Leader screens, and the Admin-only Legacy import screen; all run on localhost with fake data. See [docs/STATUS.md](docs/STATUS.md) for what is done and what is next.
 
 ## Commands
 

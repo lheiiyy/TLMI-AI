@@ -1,0 +1,45 @@
+<!-- Static structure of the legacy import screen (Admin only). import.js fills the slots with textContent only. -->
+
+<template id="view-legacy-import">
+  <h1>Legacy import</h1>
+  <p>Brings the legacy Team Leader records into the app, using the decisions written in the review sheet. Check first: the check changes no Team Leader data. A row that is not ready is never guessed; it waits for a decision in the review sheet, or it is skipped here with a reason.</p>
+  <div class="toolbar"><button type="button" data-slot="validate">Check the legacy rows</button></div>
+  <div data-slot="message" role="status"></div>
+  <section data-slot="batch" hidden>
+    <h2>Batch</h2>
+    <dl class="kv" data-slot="batch-facts"></dl>
+    <h2>Rows by result</h2>
+    <div data-slot="by-result"></div>
+    <h2>Problems found</h2>
+    <div data-slot="by-issue"></div>
+    <h2>Reconciliation</h2>
+    <div data-slot="reconciliation"></div>
+    <h2>Commit</h2>
+    <form data-slot="commit-form" class="panel" novalidate>
+      <p data-slot="commit-note">The backup date is a reminder to make a copy of the data sheet first. The app cannot check that a copy exists, so the date proves nothing; make the copy before you commit.</p>
+      <label>Date of the backup (today)
+        <input type="date" name="backup_date" autocomplete="off">
+      </label>
+      <div class="toolbar">
+        <button type="submit" data-slot="commit">Commit the ready rows</button>
+        <button type="button" data-slot="continue" hidden>Continue the commit</button>
+      </div>
+    </form>
+    <h2>Rows</h2>
+    <form class="toolbar" data-slot="filters">
+      <select name="result" aria-label="Show rows with this result">
+        <option value="">All results</option>
+        <option value="READY">Ready</option>
+        <option value="NOT_READY">Not ready</option>
+        <option value="SKIPPED">Skipped</option>
+        <option value="COMMITTED">Committed</option>
+        <option value="ALREADY_COMMITTED">Already committed</option>
+      </select>
+      <input type="search" name="search" aria-label="Search by name or problem" placeholder="Name or problem">
+      <button type="submit" class="secondary">Show</button>
+    </form>
+    <div data-slot="rows"></div>
+    <div class="pager" data-slot="pager"></div>
+    <div data-slot="skip-form"></div>
+  </section>
+</template>

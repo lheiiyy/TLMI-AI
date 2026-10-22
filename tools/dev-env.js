@@ -5,6 +5,8 @@ const { loadServer } = require('../tests/helpers/loader');
 const { fillTab } = require('../tests/helpers/sheets');
 const legacy = require('../tests/fixtures/legacy-copy');
 const master = require('../tests/fixtures/master-log');
+const { BASELINE } = require('../tests/fixtures/review-decisions');
+const { writeDecisions } = require('../tests/helpers/review-decide');
 
 // Test code only. This invented password protects an in-memory fake and nothing else.
 const TEST_PASSWORD = 'TEST-ONLY-Pass-1';
@@ -59,6 +61,14 @@ function createEnv() {
   if (!seeded.ok) throw new Error('dev environment: seed failed: ' + JSON.stringify(seeded.error));
   env.handle({ v: 1, method: 'auth.signOut', params: {}, token: signIn.data.token });
   seedTeamLeaders(env);
+  // Browser tests of the legacy import call this: it builds the review sheet and gives it the invented officer decisions.
+  env.reviewWithDecisions = () => {
+    const si = env.handle({ v: 1, method: 'auth.signIn', params: { employee_id: TEST_ADMIN_NO, password: TEST_PASSWORD } });
+    const run = env.handle({ v: 1, method: 'importReview.run', params: {}, token: si.data.token });
+    env.handle({ v: 1, method: 'auth.signOut', params: {}, token: si.data.token });
+    if (!run.ok) throw new Error('dev environment: review failed');
+    writeDecisions(env.google.sheets.get('dev-review'), BASELINE);
+  };
   return env;
 }
 
