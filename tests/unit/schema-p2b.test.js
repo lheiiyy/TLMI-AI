@@ -165,3 +165,15 @@ test('the validator checks min, max and decimals', () => {
   assert.throws(() => run({ d: 1.005 }), (e) => e.fields[0].code === 'DECIMALS');
   assert.doesNotThrow(() => run({ d: 84.99 }));
 });
+
+test('the validator checks a list of text values and its number of items', () => {
+  const env = setupDb({ tables: false });
+  const V = env.g('Validator');
+  const def = { name: 'x', fields: { ids: { type: 'array', min: 1, max: 3 } } };
+  const run = (o) => env.plain(V.clean(def, o, 'create'));
+  assert.deepEqual(run({ ids: [' a ', 'b'] }), { ids: ['a', 'b'] });
+  assert.throws(() => run({ ids: [] }), (e) => e.fields[0].code === 'RANGE');
+  assert.throws(() => run({ ids: ['a', 'b', 'c', 'd'] }), (e) => e.fields[0].code === 'RANGE');
+  assert.throws(() => run({ ids: 'a' }), (e) => e.fields[0].code === 'TYPE');
+  assert.throws(() => run({ ids: [1] }), (e) => e.fields[0].code === 'TYPE');
+});

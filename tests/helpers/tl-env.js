@@ -39,6 +39,19 @@ function setupTl() {
     Object.assign({ id, row_version: env.version(id), component_id: comp, score, assessed_on: '2026-10-10' }, o || {}));
   // Records every required entry grade (all five at 90).
   env.allEntryGrades = (id, role) => env.entryComps.map((c) => env.grade(id, c, 90, {}, role));
+  // A certification check with the usual scores: final 83.3, course program 95.
+  env.check = (id, o, role) => env.tl(role || 'officer', 'tl.recordCertCheck', Object.assign({
+    id, row_version: env.version(id), assessed_on: '2026-10-15', checklist: 90, exam: 80, kitchen_feedback: 85, manager_feedback: 75,
+    course_program: 95, officer_ids: [env.users.officer.id],
+  }, o || {}));
+  // An enrollment that has all its entry grades (Probationary), entered on 2026-10-01.
+  env.probationary = (o) => {
+    const d = env.enroll(o);
+    if (!d.ok) throw new Error('enroll failed in test: ' + JSON.stringify(d));
+    env.allEntryGrades(d.data.enrollment.id);
+    return d.data.enrollment.id;
+  };
+  env.act = (id, method, params, role) => env.tl(role || 'officer', method, Object.assign({ id, row_version: env.version(id) }, params || {}));
   // Sets a setting for Admin's choice (a new version, effective today).
   env.setting = (key, value) => {
     const versions = rows('settings').filter((x) => x.setting_key === key).sort((a, b) => a.version - b.version);

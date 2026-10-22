@@ -88,9 +88,12 @@ const TlService = (function () {
 
   // ---------- checks used by several actions ----------
 
-  function loadEnrollment(uow, id) {
+  // The enrollment as it stands in this unit of work. With expectedVersion, a stale caller gets CONFLICT before anything else
+  // is checked, so a second officer who acted on an old screen is told to reload, whatever the record has become.
+  function loadEnrollment(uow, id, expectedVersion) {
     const e = uow.get('tl_enrollments', id);
     if (!e) throw Errors.notFound();
+    if (expectedVersion !== undefined) checkVersion(uow, e, expectedVersion);
     return e;
   }
 
@@ -215,7 +218,7 @@ const TlService = (function () {
     const bad = Object.keys(p.patch).filter((k) => UPDATABLE.indexOf(k) < 0);
     if (bad.length) throw Errors.validation(bad.map((k) => ({ path: 'patch.' + k, code: 'UNKNOWN_FIELD', message: 'This field cannot be changed here.' })));
     const result = Repository.transact((uow) => {
-      const e = loadEnrollment(uow, p.id);
+      const e = loadEnrollment(uow, p.id, p.row_version);
       const patch = Object.assign({}, p.patch);
       if ('mother_location_id' in patch && !patch.mother_location_id) throw Errors.validation([{ path: 'patch.mother_location_id', code: 'REQUIRED', message: 'A store is required.' }]);
       const mother = uow.get('locations', patch.mother_location_id || e.mother_location_id);
@@ -236,7 +239,7 @@ const TlService = (function () {
 
   function recordEntryGrade(ctx, p) {
     const result = Repository.transact((uow) => {
-      const e = loadEnrollment(uow, p.id);
+      const e = loadEnrollment(uow, p.id, p.row_version);
       const facts = {};
       const d = TlRules.decide('recordEntryGrade', e.status, ctx.role, facts);
       if (!d.ok) throw decisionError(d);
@@ -256,7 +259,7 @@ const TlService = (function () {
       }
       const grade = uow.append('assessments', row, actorOf(ctx), yearOf(p.assessed_on));
       const state = TlRules.entryState(requiredEntryComponents(uow).map((c) => c.id), entryGrades(uow, e.id));
-      let after = checkVersion(uow, e, p.row_version);
+      let after = e;
       // Interim X-2: probation starts when the last required entry grade is saved.
       if (state.complete && e.status === S.ENTRY) after = statusChange(uow, ctx, e, S.PROBATION, p.assessed_on, 'The last required entry grade was recorded.');
       AuditService.event(uow, ctx, {
@@ -332,8 +335,15 @@ const TlService = (function () {
     const officers = Repository.all('tl_certifying_officers').filter((o) => o.tl_enrollment_id === e.id);
     const attempts = {};
     certRows.forEach((a) => { (attempts[a.retake_no] = attempts[a.retake_no] || []).push(a); });
+    const finalOf = (rowsOfAttempt) => {
+      const by = {};
+      rowsOfAttempt.forEach((r) => { by[compName[r.component_id]] = r.score; });
+      if (by[COMP.CHECKLIST] === undefined || by[COMP.EXAM] === undefined || (by[COMP.KITCHEN] === undefined && by[COMP.MANAGER] === undefined)) return null;
+      return TlRules.finalGrade({ checklist: by[COMP.CHECKLIST], exam: by[COMP.EXAM], kitchen: by[COMP.KITCHEN], manager: by[COMP.MANAGER] },
+        weightsOn(rowsOfAttempt[0].assessed_on));
+    };
     const checks = Object.keys(attempts).map(Number).sort((a, b) => a - b).map((n) => ({
-      retake_no: n, assessed_on: attempts[n][0].assessed_on,
+      retake_no: n, assessed_on: attempts[n][0].assessed_on, final_grade: finalOf(attempts[n].filter((r) => compName[r.component_id] !== COMP.COURSE)),
       scores: attempts[n].map(view),
       officers: officers.filter((o) => o.retake_no === n).map((o) => ({ user_id: o.user_id, name: names[o.user_id] || '' })),
     }));
@@ -409,6 +419,237 @@ const TlService = (function () {
     return Api.paged(page, { next_cursor: rest.length > size && last ? last.at + '|' + last.id : null });
   }
 
+  // ---------- certification check and the actions after it ----------
+
+  const COMP = { CHECKLIST: 'Checklist', EXAM: 'Exam', KITCHEN: 'Kitchen feedback', MANAGER: 'Manager feedback', COURSE: 'TL course program' };
+
+  function certComponents(uow) {
+    const out = {};
+    Object.keys(COMP).forEach((k) => {
+      const c = uow.all('assessment_components').filter((x) => x.stage === CERT_STAGE && x.name === COMP[k] && x.is_active)[0];
+      if (!c) throw Errors.configMissing('the component ' + COMP[k]);
+      out[k] = c;
+    });
+    return out;
+  }
+
+  // The weights in force on a date (CFG-044, CFG-045).
+  function weightsOn(date) {
+    return { cert: requireSetting('CFG-044', date).value, feedback: requireSetting('CFG-045', date).value };
+  }
+
+  function attemptNo(rows) { return rows.reduce((n, g) => Math.max(n, g.retake_no), 0); }
+
+  function checkOfficers(uow, ids) {
+    const errs = [];
+    if (new Set(ids).size !== ids.length) errs.push({ path: 'officer_ids', code: 'DUPLICATE', message: 'Each officer once.' });
+    ids.forEach((id) => {
+      const u = uow.get('users', id);
+      if (!u || !u.is_active || TlRules.ACTIONS.certify.indexOf(u.role) < 0) errs.push({ path: 'officer_ids', code: 'LINK', message: 'Each officer must be an active user whose role may certify.' });
+    });
+    if (errs.length) throw Errors.validation(errs);
+  }
+
+  function recordCertCheck(ctx, p) {
+    const result = Repository.transact((uow) => {
+      const e = loadEnrollment(uow, p.id, p.row_version);
+      const grades = loadGrades(uow, e);
+      const d = TlRules.decide('recordCertCheck', e.status, ctx.role, { entryComplete: grades.entry.complete });
+      if (!d.ok) throw decisionError(d);
+      if (p.assessed_on > Clock.today()) throw Errors.validation([{ path: 'assessed_on', code: 'FUTURE_DATE', message: 'The date cannot be after today.' }]);
+      if (p.assessed_on < e.entry_date) throw Errors.validation([{ path: 'assessed_on', code: 'BEFORE_ENTRY', message: 'The date cannot be before the entry date.' }]);
+      const hasKitchen = p.kitchen_feedback !== undefined && p.kitchen_feedback !== null;
+      const hasManager = p.manager_feedback !== undefined && p.manager_feedback !== null;
+      if (!hasKitchen && !hasManager) throw Errors.validation([{ path: 'kitchen_feedback', code: 'REQUIRED', message: 'Record at least one feedback score (RULE-102).' }]);
+      const comps = certComponents(uow);
+      const correction = e.status === S.CHECK;
+      const current = attemptNo(grades.cert.filter((g) => g.component_id !== comps.COURSE.id));
+      const retake = correction ? current : current + 1;
+      const inForce = (comp, no) => grades.cert.filter((g) => g.component_id === comp.id && (no === undefined || g.retake_no === no))[0] || null;
+      const courseNow = inForce(comps.COURSE);
+      if (correction && !p.correction_reason) throw Errors.validation([{ path: 'correction_reason', code: 'REQUIRED', message: 'A reason is required to correct a certification check.' }]);
+      if (!courseNow && (p.course_program === undefined || p.course_program === null)) {
+        throw Errors.validation([{ path: 'course_program', code: 'REQUIRED', message: 'The TL course program grade is required.' }]);
+      }
+      if (courseNow && p.course_program !== undefined && p.course_program !== null && p.course_program !== courseNow.score && !p.correction_reason) {
+        throw Errors.validation([{ path: 'correction_reason', code: 'REQUIRED', message: 'A reason is required to change the TL course program grade.' }]);
+      }
+      if (!correction) {
+        if (!p.officer_ids || !p.officer_ids.length) throw Errors.validation([{ path: 'officer_ids', code: 'REQUIRED', message: 'Name at least one certifying officer.' }]);
+        checkOfficers(uow, p.officer_ids);
+      }
+      const base = { subject_type: 'TL_ENROLLMENT', subject_id: e.id, assessed_on: p.assessed_on, assessed_by: ctx.userId };
+      const year = yearOf(p.assessed_on);
+      const written = [];
+      const put = (comp, score, no) => {
+        // A score belongs to its attempt; the TL course program grade is one per enrollment, whichever attempt recorded it.
+        const cur = comp.id === comps.COURSE.id ? inForce(comp) : inForce(comp, no);
+        const row = Object.assign({}, base, { component_id: comp.id, score: score, retake_no: no });
+        if (cur) {
+          if (correction || comp.id === comps.COURSE.id) {
+            if (cur.score === score) return;
+            row.supersedes_id = cur.id;
+            row.correction_reason = p.correction_reason;
+          } else {
+            return;
+          }
+        }
+        written.push(uow.append('assessments', row, actorOf(ctx), year));
+      };
+      put(comps.CHECKLIST, p.checklist, retake);
+      put(comps.EXAM, p.exam, retake);
+      if (hasKitchen) put(comps.KITCHEN, p.kitchen_feedback, retake);
+      if (hasManager) put(comps.MANAGER, p.manager_feedback, retake);
+      if (p.course_program !== undefined && p.course_program !== null) put(comps.COURSE, p.course_program, courseNow ? courseNow.retake_no : retake);
+      if (correction && !written.length && !p.visit_report_url) {
+        throw Errors.validation([{ path: 'checklist', code: 'NO_CHANGE', message: 'No score was changed.' }]);
+      }
+      // The final grade from the scores of this attempt that are in force now.
+      const mine = TlRules.inForce(uow.all('assessments').filter((a) => a.subject_type === 'TL_ENROLLMENT' && a.subject_id === e.id && a.retake_no === retake && a.component_id !== comps.COURSE.id));
+      const score = (comp) => { const r = mine.filter((a) => a.component_id === comp.id)[0]; return r ? r.score : undefined; };
+      const final = TlRules.finalGrade({ checklist: score(comps.CHECKLIST), exam: score(comps.EXAM), kitchen: score(comps.KITCHEN), manager: score(comps.MANAGER) }, weightsOn(p.assessed_on));
+      const extra = { final_grade: final };
+      if (p.visit_report_url) extra.visit_report_url = p.visit_report_url;
+      let after;
+      if (correction) {
+        const r = uow.update('tl_enrollments', e.id, extra, { expectedVersion: p.row_version, actor: actorOf(ctx) });
+        AuditService.changes(uow, ctx, 'tl_enrollments', e.id, r.before, r.after);
+        after = r.after;
+      } else {
+        p.officer_ids.forEach((uid) => uow.append('tl_certifying_officers', { tl_enrollment_id: e.id, user_id: uid, retake_no: retake }, actorOf(ctx)));
+        after = statusChange(uow, ctx, e, S.CHECK, p.assessed_on, 'Certification check ' + retake + '.', extra);
+      }
+      AuditService.event(uow, ctx, {
+        event: 'TL.CERT_CHECK_RECORDED', entity: 'tl_enrollments', entityId: e.id,
+        detail: { retake_no: retake, mode: correction ? 'CORRECTION' : 'NEW', final_grade: final, assessment_ids: written.map((w) => w.id) },
+      });
+      return { enrollment: after, retake_no: retake, final_grade: final, assessments: written };
+    });
+    bumpDataVersion();
+    return result;
+  }
+
+  // The facts of a record as it stands now, inside a unit of work.
+  function factsIn(uow, e, role) {
+    const grades = loadGrades(uow, e);
+    return { grades: grades, facts: factsOf(e, role, grades) };
+  }
+
+  function certify(ctx, p) {
+    const result = Repository.transact((uow) => {
+      const e = loadEnrollment(uow, p.id, p.row_version);
+      const f = factsIn(uow, e, ctx.role);
+      const d = TlRules.decide('certify', e.status, ctx.role, f.facts);
+      if (!d.ok) throw decisionError(d);
+      const latest = attemptNo(f.grades.cert.filter((g) => g.retake_no >= 1 && g.component_id !== f.grades.courseId));
+      const checkDate = f.grades.cert.filter((g) => g.retake_no === latest && g.component_id !== f.grades.courseId)[0].assessed_on;
+      const pass = settingOn('CFG-041', checkDate);
+      const w44 = settingOn('CFG-044', checkDate);
+      const w45 = settingOn('CFG-045', checkDate);
+      // D008: the pass mark and the weights used are stamped on the record, so a later change of a setting never changes it.
+      const after = statusChange(uow, ctx, e, S.CERTIFIED, checkDate, 'Certified.', {
+        certified_on: checkDate, pass_mark_used: pass.value, weights_version: 'CFG-041@v' + pass.version + ';CFG-044@v' + w44.version + ';CFG-045@v' + w45.version,
+      });
+      AuditService.event(uow, ctx, {
+        event: 'TL.CERTIFIED', entity: 'tl_enrollments', entityId: e.id,
+        detail: { certified_on: checkDate, final_grade: e.final_grade, pass_mark_used: pass.value },
+      });
+      return { enrollment: after };
+    });
+    bumpDataVersion();
+    return result;
+  }
+
+  function extend(ctx, p) {
+    const result = Repository.transact((uow) => {
+      const e = loadEnrollment(uow, p.id, p.row_version);
+      const f = factsIn(uow, e, ctx.role);
+      const d = TlRules.decide('extend', e.status, ctx.role, f.facts);
+      if (!d.ok) throw decisionError(d);
+      const days = requireSetting('CFG-042', Clock.today()).value;
+      const next = TlRules.addDays(e.deadline, days);
+      const ext = uow.append('tl_extensions', {
+        tl_enrollment_id: e.id, extension_no: f.facts.extensionsUsed + 1, old_deadline: e.deadline, new_deadline: next, reason: p.reason,
+      }, actorOf(ctx));
+      const after = statusChange(uow, ctx, e, S.EXTENDED, Clock.today(), p.reason, { deadline: next });
+      AuditService.event(uow, ctx, {
+        event: 'TL.EXTENDED', entity: 'tl_enrollments', entityId: e.id,
+        detail: { extension_no: ext.extension_no, old_deadline: e.deadline, new_deadline: next },
+      });
+      return { enrollment: after, extension: ext };
+    });
+    bumpDataVersion();
+    return result;
+  }
+
+  function lookupOf(uow, category, id, path) {
+    const l = id ? uow.get('lookups', id) : null;
+    if (!l || l.category !== category || !l.is_active) throw Errors.validation([{ path: path, code: 'LINK', message: 'Choose an active value from the list.' }]);
+    return l;
+  }
+
+  function close(ctx, p) {
+    const result = Repository.transact((uow) => {
+      const e = loadEnrollment(uow, p.id, p.row_version);
+      const d = TlRules.decide('close', e.status, ctx.role, {});
+      if (!d.ok) throw decisionError(d);
+      const reason = lookupOf(uow, 'tl_close_reason', p.close_reason_id, 'close_reason_id');
+      const after = statusChange(uow, ctx, e, S.FAILED, Clock.today(), p.remark || reason.label, { close_reason_id: reason.id });
+      AuditService.event(uow, ctx, { event: 'TL.FAILED', entity: 'tl_enrollments', entityId: e.id, detail: { close_reason_id: reason.id } });
+      return { enrollment: after };
+    });
+    bumpDataVersion();
+    return result;
+  }
+
+  function quit(ctx, p) {
+    const result = Repository.transact((uow) => {
+      const e = loadEnrollment(uow, p.id, p.row_version);
+      const d = TlRules.decide('quit', e.status, ctx.role, {});
+      if (!d.ok) throw decisionError(d);
+      // The quit reasons are an Admin list (CFG-018); with no value, quitting is blocked until Admin adds one.
+      if (!uow.all('lookups').some((l) => l.category === 'tl_quit_reason' && l.is_active)) throw Errors.configMissing('CFG-018');
+      const reason = lookupOf(uow, 'tl_quit_reason', p.quit_reason_lookup_id, 'quit_reason_lookup_id');
+      if (p.quit_date > Clock.today()) throw Errors.validation([{ path: 'quit_date', code: 'FUTURE_DATE', message: 'The date cannot be after today.' }]);
+      if (p.quit_date < e.entry_date) throw Errors.validation([{ path: 'quit_date', code: 'BEFORE_ENTRY', message: 'The date cannot be before the entry date.' }]);
+      // A quit is never a failure (D068): the status is Quit and the person can be enrolled again.
+      const after = statusChange(uow, ctx, e, S.QUIT, p.quit_date, p.remark || reason.label, { quit_date: p.quit_date, quit_reason_lookup_id: reason.id });
+      AuditService.event(uow, ctx, { event: 'TL.QUIT', entity: 'tl_enrollments', entityId: e.id, detail: { quit_reason_lookup_id: reason.id, quit_date: p.quit_date } });
+      return { enrollment: after };
+    });
+    bumpDataVersion();
+    return result;
+  }
+
+  // Interim X-3: only from Certification check and Extended; the deadline stays; a note is required.
+  function returnToProbation(ctx, p) {
+    const result = Repository.transact((uow) => {
+      const e = loadEnrollment(uow, p.id, p.row_version);
+      const d = TlRules.decide('returnToProbation', e.status, ctx.role, {});
+      if (!d.ok) throw decisionError(d);
+      const after = statusChange(uow, ctx, e, S.PROBATION, Clock.today(), p.note);
+      AuditService.event(uow, ctx, { event: 'TL.RETURNED_TO_PROBATION', entity: 'tl_enrollments', entityId: e.id, detail: { from_status: e.status } });
+      return { enrollment: after };
+    });
+    bumpDataVersion();
+    return result;
+  }
+
+  function promote(ctx, p) {
+    const result = Repository.transact((uow) => {
+      const e = loadEnrollment(uow, p.id, p.row_version);
+      const d = TlRules.decide('promote', e.status, ctx.role, {});
+      if (!d.ok) throw decisionError(d);
+      if (p.promoted_on > Clock.today()) throw Errors.validation([{ path: 'promoted_on', code: 'FUTURE_DATE', message: 'The date cannot be after today.' }]);
+      if (e.certified_on && p.promoted_on < e.certified_on) throw Errors.validation([{ path: 'promoted_on', code: 'BEFORE_CERTIFIED', message: 'The date cannot be before the certification date.' }]);
+      const after = statusChange(uow, ctx, e, S.PROMOTED, p.promoted_on, 'Promoted.', { promoted_on: p.promoted_on });
+      AuditService.event(uow, ctx, { event: 'TL.PROMOTED', entity: 'tl_enrollments', entityId: e.id, detail: { promoted_on: p.promoted_on } });
+      return { enrollment: after };
+    });
+    bumpDataVersion();
+    return result;
+  }
+
   // ---------- methods ----------
 
   function methods() {
@@ -438,6 +679,34 @@ const TlService = (function () {
         }, id, rv),
         handler: recordEntryGrade,
       },
+      'tl.recordCertCheck': {
+        kind: 'W',
+        params: Object.assign({
+          assessed_on: { type: 'date', required: true },
+          checklist: { type: 'number', required: true, min: 0, max: 100, decimals: 2 },
+          exam: { type: 'number', required: true, min: 0, max: 100, decimals: 2 },
+          kitchen_feedback: { type: 'number', min: 0, max: 100, decimals: 2 },
+          manager_feedback: { type: 'number', min: 0, max: 100, decimals: 2 },
+          course_program: { type: 'number', min: 0, max: 100, decimals: 2 },
+          officer_ids: { type: 'array', min: 1, max: 5 },
+          visit_report_url: { type: 'text', max: 500 }, correction_reason: { type: 'text', max: 500 },
+        }, id, rv),
+        handler: recordCertCheck,
+      },
+      'tl.certify': { kind: 'W', params: Object.assign({}, id, rv), handler: certify },
+      'tl.extend': { kind: 'W', params: Object.assign({ reason: { type: 'text', required: true, max: 500 } }, id, rv), handler: extend },
+      'tl.close': {
+        kind: 'W', params: Object.assign({ close_reason_id: { type: 'text', required: true, max: 40 }, remark: { type: 'text', max: 500 } }, id, rv), handler: close,
+      },
+      'tl.quit': {
+        kind: 'W',
+        params: Object.assign({
+          quit_date: { type: 'date', required: true }, quit_reason_lookup_id: { type: 'text', required: true, max: 40 }, remark: { type: 'text', max: 500 },
+        }, id, rv),
+        handler: quit,
+      },
+      'tl.returnToProbation': { kind: 'W', params: Object.assign({ note: { type: 'text', required: true, max: 500 } }, id, rv), handler: returnToProbation },
+      'tl.promote': { kind: 'W', params: Object.assign({ promoted_on: { type: 'date', required: true } }, id, rv), handler: promote },
     };
   }
 

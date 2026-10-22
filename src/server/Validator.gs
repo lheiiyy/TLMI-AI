@@ -52,6 +52,15 @@ const Validator = {
         if (s.length > max) return { err: 'TOO_LONG', msg: 'At most ' + max + ' characters.' };
         return { value: s };
       }
+      case 'array': {
+        // A list of text values (spec.min and spec.max are the allowed numbers of items; each item is trimmed text).
+        if (!Array.isArray(v)) return { err: 'TYPE', msg: 'A list is expected.' };
+        if (!v.every((x) => typeof x === 'string')) return { err: 'TYPE', msg: 'Each item must be text.' };
+        const items = v.map((x) => x.trim());
+        if (spec.min !== undefined && items.length < spec.min) return { err: 'RANGE', msg: 'At least ' + spec.min + ' item(s).' };
+        if (spec.max !== undefined && items.length > spec.max) return { err: 'RANGE', msg: 'At most ' + spec.max + ' items.' };
+        return { value: items };
+      }
       case 'object':
         return (v !== null && typeof v === 'object' && !Array.isArray(v)) ? { value: v } : { err: 'TYPE', msg: 'An object is expected.' };
       case 'int': {
