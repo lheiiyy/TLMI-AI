@@ -19,6 +19,11 @@ for (const width of [1280, 375]) {
     await expect(page.locator('#main')).not.toContainText('PERSON_UNCONFIRMED');
     await expect(page.locator('#main')).toContainText('Nothing was imported yet.');
 
+    // a ready row with a warning shows its note, marked as a note
+    await page.selectOption('[name="result"]', 'READY');
+    await page.getByRole('button', { name: 'Show' }).click();
+    await expect(page.locator('#main [data-note]').first()).toContainText('Note: ');
+
     // a not ready row is skipped, and the reason is required
     await page.selectOption('[name="result"]', 'NOT_READY');
     await page.getByRole('button', { name: 'Show' }).click();
@@ -28,6 +33,15 @@ for (const width of [1280, 375]) {
     await page.fill('[name="skip_reason"]', 'Duplicate of a record kept in the paper file');
     await page.getByRole('button', { name: 'Skip this row' }).click();
     await expect(page.locator('#main')).toContainText('is skipped.');
+    // the other not ready row is skipped too, so that nothing needs action
+    await page.getByRole('button', { name: 'Show' }).click();
+    while (await page.locator('[data-skip]').count() > 0) {
+      await page.locator('[data-skip]').first().click();
+      await page.fill('[name="skip_reason"]', 'Kept in the paper file');
+      await page.getByRole('button', { name: 'Skip this row' }).click();
+      await expect(page.locator('#main')).toContainText('is skipped.');
+      await page.getByRole('button', { name: 'Show' }).click();
+    }
 
     // the backup date must be today
     await page.fill('[name="backup_date"]', '2026-10-01');
@@ -40,11 +54,15 @@ for (const width of [1280, 375]) {
     await expect(page.locator('[data-slot="batch-facts"]')).toContainText('Committed');
     await expect(page.locator('[data-slot="commit-form"]')).toBeHidden();
 
-    // the committed rows are listed and the batch is Committed
-    await page.selectOption('[name="result"]', 'COMMITTED');
+    await expect(page.locator('[data-slot="reconciled"]')).toHaveText('Yes');
+    await page.getByRole('button', { name: 'Check the legacy rows' }).click();
+    await expect(page.locator('#main')).toContainText('The check is done');
+    await expect(page.locator('[data-slot="by-result"]')).toContainText(/Already committed\s*8/);
+
+    // the rows are now listed as already committed and the batch is Committed
+    await page.selectOption('[name="result"]', 'ALREADY_COMMITTED');
     await page.getByRole('button', { name: 'Show' }).click();
-    await expect(page.locator('#main table').last().locator('tbody tr').first()).toContainText('Committed');
-    await expect(page.locator('#main')).toContainText('Committed');
+    await expect(page.locator('#main table').last().locator('tbody tr').first()).toContainText('Already committed');
     await noHorizontalScroll(page);
     expect(problems.console).toEqual([]);
     expect(problems.requests).toEqual([]);
