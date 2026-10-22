@@ -191,15 +191,14 @@ The comment rules in `docs/COLLABORATION.md` stay: every comment starts with `Co
 
 ### 5.3 One hand-off, step by step
 
-Every run, of either agent, starts the same way:
+Every run, of either agent, goes in this order (the exact rules are the task prompts in `docs/automation/`; Leo's word of 2026-10-22):
 
-1. If an open issue has `automation:paused`, end with "Paused." and change nothing.
-2. Read the item named in the wake hint. If the baton label is not yours, or `needs:leo` is on it, end with "No new work."
-3. If `agent:working` is on it and the latest claim comment is less than 60 minutes old, end with "No new work." (A `CLAIM withdrawn` comment is not a claim.)
-4. Add `agent:working` and post `Code: CLAIM <run id> head <sha>` (or `Reviewer: CLAIM ...`). Re-read the comments: if an earlier claim for the same head appeared within the last 2 minutes, the earlier one wins; post `Code: CLAIM withdrawn <UTC time>` (or `Reviewer: CLAIM withdrawn ...`), leave the labels alone, and end.
-5. Do the work.
-6. Right before posting a result, re-read the comments (rule 9 of the Reviewer's task). Post the result with the head commit.
-7. Move the baton (remove your `agent:` label, add the next one), remove `agent:working`, and, when a trigger id is configured, wake the next agent with the hint below. The wake is optional: if no id is configured or the platform refuses it, say so in the final message; the other side finds the item at its next 20-minute check or at the hourly repair. If nothing changed in this run (no new commit, no new decision), do not hand over: end with "No change."
+1. **Cheap triage, from GitHub metadata only, no clone.** The kill switch (an open issue with `automation:paused` gives "Paused."); the open items that carry the agent's own baton label (every page of every list, see PAGING in the prompts); the author and fork checks; drop an item with `needs:leo`, `status:blocked`, or `agent:working` with a claim comment less than 60 minutes old (a `CLAIM withdrawn` comment is not a claim); the attempt caps; the kind of work, from the labels, the head sha and the newest verdict or comment.
+2. **Exit when idle.** If nothing needs work, end with "No new work." (or "Paused.") before any clone, spec reading, test run, subagent, label or comment. The one exception is Code's limit hand-off.
+3. Add `agent:working` and post `Code: CLAIM <run id> head <sha>` (or `Reviewer: CLAIM ...`). Re-read the comments: if an earlier claim for the same head appeared within the last 2 minutes, the earlier one wins; post `Code: CLAIM withdrawn <UTC time>` (or `Reviewer: CLAIM withdrawn ...`), leave the labels alone, and end.
+4. **Load context for that one item only** (the mandatory rules, the named spec and plan sections, the diff) and do the work.
+5. Right before posting a result, re-read the comments (the hand-off rule of each prompt). Post the result with the head commit.
+6. Move the baton (remove your `agent:` label, add the next one), remove `agent:working`, and, when a trigger id is configured, wake the next agent with the hint below. The wake is optional: if no id is configured or the platform refuses it, say so in the final message; the other side finds the item at its next 20-minute check or at the hourly repair. If nothing changed in this run (no new commit, no new decision), do not hand over: end with "No change."
 
 The wake hint (plain text, read as untrusted):
 
