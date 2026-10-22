@@ -40,6 +40,7 @@ const AuthService = (function () {
     'settings.set': [ADMIN],
     'seed.run': [ADMIN],
     'importReview.run': [ADMIN], 'importReview.get': [ADMIN],
+    'persons.get': ALL, 'persons.matchCandidates': ALL,
     'audit.list': [SENIOR, ADMIN],
     'history.get': [ADMIN],
   };
