@@ -24,7 +24,7 @@
 ## Next
 
 - Leo does the one-time setup on DEV and TEST in [docs/SETUP.md](SETUP.md) and runs the gate G1 checks in [docs/G1-CHECKLIST.md](G1-CHECKLIST.md). Phase 1 is complete in code; gate G1 is closed only after those checks, and after the timing from `measureHash` and the number format `0.######` have been looked at on TEST.
-- Phase 2 pull request E (part 2A, tasks 1 to 7: Employee ID and password sign-in, per-user pause, session epochs, temporary passwords, `initFirstAdmin` and `initAdminPassword`, sign-in, change-password and Users screens) is built and waits for the Reviewer. Next: pull request F (tasks 8 to 12), then G and H, each from an updated `main`. Do not deploy: the `users` tab of an existing database needs four new columns first ([docs/SETUP.md](SETUP.md) section 3).
+- Phase 2 pull request E (part 2A, tasks 1 to 7: Employee ID and password sign-in, per-user pause, session epochs, temporary passwords, `initFirstAdmin` and `initAdminPassword`, sign-in, change-password and Users screens) is built and waits for the Reviewer (round 2 fixes the Reviewer's findings 1 to 4: a wrong current password in `auth.changePassword` counts and pauses like a wrong sign-in password; the two temporary password properties are trimmed; the Admin-exists message; the temporary-password box is cleared at sign-out). Next: pull request F (tasks 8 to 12), then G and H, each from an updated `main`. Do not deploy: the `users` tab of an existing database needs four new columns first ([docs/SETUP.md](SETUP.md) section 3).
 - Admin sets the extension limit (CFG-047) and the quit reasons (CFG-018) in the app before the first extension and the first quit. Settle the probation start in TDMS before gate G2 (interim X-2).
 
 ## Blockers and open items
