@@ -221,8 +221,8 @@ test('every record the seed creates has its own audit row, with the same event n
   assert.equal(byEvent['MASTER.STATION.CREATED'], 6);
   assert.equal(byEvent['LOCATION.CREATED'], 4);
   assert.equal(byEvent['LOOKUP.CREATED'], 6);
-  assert.equal(byEvent['COMPONENT.CREATED'], 9);
-  assert.equal(byEvent['SETTING.CHANGED'], 8);
+  assert.equal(byEvent['COMPONENT.CREATED'], 10);
+  assert.equal(byEvent['SETTING.CHANGED'], 9);
   assert.equal(byEvent['USER.CREATED'], 2);
   assert.equal(byEvent['USER.DEACTIVATED'], 1);
   const loc = env.plain(env.g('Repository').all('locations'))[0];

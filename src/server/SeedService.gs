@@ -6,11 +6,13 @@ const SeedService = (function () {
   const LOCATION_TYPES = [['Store', true], ['Commissary', false], ['Office', false], ['Call Center', false], ['Warehouse', false]];
   const STATIONS = ['Food Prep', 'Pizza Maker', 'Cashier', 'Service', 'Commis', 'Dough Maker'];
   const ENTRY_COMPONENTS = ['ISTV', 'Tech Val Food Prep', 'Tech Val Pizza Maker', 'TL entry exam Food Prep', 'TL entry exam Pizza Maker'];
-  const CERT_COMPONENTS = [['Checklist', true], ['Exam', true], ['Kitchen feedback', false], ['Manager feedback', false]];
+  const CERT_COMPONENTS = [['Checklist', true], ['Exam', true], ['Kitchen feedback', false], ['Manager feedback', false], ['TL course program', true]];
   // CFG-047 (extension limit) is deliberately absent: it stays unset until Admin decides (RULE-104).
+  // TLMI-001 (TL course program pass mark) is seeded at 90 (spec section 5).
   const SETTING_VALUES = [
     ['CFG-001', '30'], ['CFG-002', '5'], ['CFG-003', '15'], ['CFG-040', '3'],
     ['CFG-041', '85'], ['CFG-042', '30'], ['CFG-044', '30/40/30'], ['CFG-045', '60/40'],
+    ['TLMI-001', '90'],
   ];
 
   const key = (s) => String(s).trim().replace(/\s+/g, ' ').toLowerCase();

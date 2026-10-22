@@ -57,7 +57,13 @@ const Validator = {
       case 'int':
         return Number.isInteger(v) ? { value: v } : { err: 'TYPE', msg: 'A whole number is expected.' };
       case 'number':
-        return (typeof v === 'number' && isFinite(v)) ? { value: v } : { err: 'TYPE', msg: 'A number is expected.' };
+        if (!(typeof v === 'number' && isFinite(v))) return { err: 'TYPE', msg: 'A number is expected.' };
+        if ((spec.min !== undefined && v < spec.min) || (spec.max !== undefined && v > spec.max)) {
+          return { err: 'RANGE', msg: 'Must be ' + (spec.min !== undefined ? spec.min : 'any') + ' to ' + (spec.max !== undefined ? spec.max : 'any') + '.' };
+        }
+        return { value: v };
+      case 'array':
+        return Array.isArray(v) ? { value: v } : { err: 'TYPE', msg: 'A list is expected.' };
       case 'bool':
         return typeof v === 'boolean' ? { value: v } : { err: 'TYPE', msg: 'true or false is expected.' };
       case 'date':
