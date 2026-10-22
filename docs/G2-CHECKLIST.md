@@ -13,5 +13,6 @@ Gate G2: the legacy Team Leader records are in the app and reconciled, and the o
 Also record before the gate is closed:
 
 - That the rehearsal on TEST was done first and its result was reconciled ([SETUP.md](SETUP.md), section 9).
+- That the import was run before any Team Leader was enrolled in the app on that environment, and that the TEST rehearsal started from a database without app-made Team Leaders.
 - The dated copy of the LIVE `TLMI_DB` made before the LIVE import, and its date. The app cannot check that this copy exists.
 - The open items still listed in [DECISIONS.md](DECISIONS.md).

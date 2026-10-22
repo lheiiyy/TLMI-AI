@@ -22,4 +22,4 @@
 
 ## Next
 
-- Merge H after the Reviewer's verdict, then the rehearsal on TEST and gate G2 ([docs/G2-CHECKLIST.md](G2-CHECKLIST.md)). Deployment and the LIVE run are the owner's.
+- Merge H after the Reviewer's verdict (round 2 pushed; #32 merged as `0bcff98`), then the rehearsal on TEST and gate G2 ([docs/G2-CHECKLIST.md](G2-CHECKLIST.md)). Deployment and the LIVE run are the owner's.

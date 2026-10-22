@@ -108,6 +108,8 @@ The Legacy import screen (Admin only) brings the legacy Team Leader records into
 
 In the `decision` column an officer writes one of: `confirm`, `different person`, `correct value`, `drop value`. For `correct value`, the `corrected_value` column holds the new value. For a proposed person it holds exactly four parts: `LAST | FIRST | MIDDLE | SUFFIX`, with the middle name and suffix left empty when there are none (for example `SAMPLE | REA | | `). An officer cell in MASTER_LOG that holds a note and not a name is shown as a warning; it is not an error.
 
+The import is run before anybody enrolls a Team Leader in the app on that environment. On TEST, start the rehearsal from a database without app-made Team Leaders: the import reuses a person only by its own legacy reference, so a Team Leader enrolled earlier in the app would get a second person and a second open record.
+
 ### Rehearsal on TEST
 
 1. After part 2A is deployed and you have signed in with a password, run the import review (section 7) and let the officers make their decisions in the review sheet.
