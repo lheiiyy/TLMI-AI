@@ -132,3 +132,11 @@ test('assembly inlines api.js, app.js, then other client scripts in name order a
   assert.throws(() => assemblePage(dir, 'mock'), /closing script tag: tl\.js/);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('the Team Leader screens never put text into the page as markup', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'client', 'tl.js'), 'utf8');
+  for (const bad of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'eval(', 'new Function']) {
+    assert.ok(src.indexOf(bad) < 0, 'tl.js must not use ' + bad);
+  }
+  assert.ok(!/SpreadsheetApp|google\.script\.run/.test(src), 'tl.js calls only Api');
+});

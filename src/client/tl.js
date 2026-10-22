@@ -1,6 +1,6 @@
 // Team Leader screens (Phase 2 spec section 8): the list, enrolling, and the record with its actions and history.
 // They call only Api (api.js). Text from the server (names, reasons, messages) goes into the page with textContent
-// (through App.h), never innerHTML. Which buttons show comes from `allowed_actions` in the server's answer: this file
+// (through App.h), never as markup. Which buttons show comes from `allowed_actions` in the server's answer: this file
 // holds no copy of the transition table or of the role rules. The deadline, the averages, the final grade and the pass
 // marks are all the server's values; the browser computes none of them. Hiding a button is not security: the server
 // checks the role on every call.
@@ -116,11 +116,12 @@
       const params = { page: page, page_size: PAGE_SIZE };
       const q = filters.querySelector('[name="q"]').value.trim();
       if (q) params.q = q;
+      params.filters = {};
       ['status', 'mother_location_id', 'station_id', 'batch_code'].forEach((n) => {
         const val = filters.querySelector('[name="' + n + '"]').value.trim();
-        if (val) params[n] = val;
+        if (val) params.filters[n] = val;
       });
-      ['open', 'overdue'].forEach((n) => { if (filters.querySelector('[name="' + n + '"]').checked) params[n] = true; });
+      ['open', 'overdue'].forEach((n) => { if (filters.querySelector('[name="' + n + '"]').checked) params.filters[n] = true; });
       params.sort = filters.querySelector('[name="sort"]').value;
       setMessage(msg, 'error', '');
       let env;
