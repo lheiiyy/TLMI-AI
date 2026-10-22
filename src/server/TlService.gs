@@ -326,6 +326,161 @@ const TlService = (function () {
     });
   }
 
+  // ---- certification and the closing actions (spec 7.4 to 7.10) -----------------------------------------------------
+  function officerCheck(uow, ids) {
+    if (!Array.isArray(ids) || ids.length < 1 || ids.length > 5) throw bad('officer_ids', 'RANGE', '1 to 5 certifying officers are needed.');
+    const seen = new Set();
+    ids.forEach((id) => {
+      const u = typeof id === 'string' ? uow.get('users', id) : null;
+      if (!u || !u.is_active || Schema.ROLES.indexOf(u.role) < 0) throw bad('officer_ids', 'LINK', 'Not an active user who may certify.');
+      if (seen.has(id)) throw bad('officer_ids', 'DUPLICATE', 'An officer is listed twice.');
+      seen.add(id);
+    });
+  }
+
+  function recordCertCheck(ctx, p) {
+    return act(ctx, p, (uow, e0) => {
+      const snap = load(uow, e0.id);
+      const d = derive(snap);
+      refuse(TlRules.decide('recordCertCheck', e0.status, ctx.role, { entryComplete: d.entry.complete }));
+      checkDate(uow, e0, p.assessed_on, 'assessed_on');
+      ['checklist', 'exam', 'kitchen_feedback', 'manager_feedback', 'course_program'].forEach((f) => { if (p[f] !== undefined) checkScore(f, p[f]); });
+      const correcting = e0.status === 'Certification check' && !!d.latest;
+      const comps = {};
+      ['checklist', 'exam', 'kitchen', 'manager', 'course'].forEach((k) => { comps[k] = compNamed(snap.comps, NAMES[k]); });
+      const given = { checklist: p.checklist, exam: p.exam, kitchen: p.kitchen_feedback, manager: p.manager_feedback };
+      const reason = tidy(p.correction_reason);
+      const add = (compKey, score, retakeNo, supersedes, why) => {
+        const row = {
+          subject_type: 'TL_ENROLLMENT', subject_id: e0.id, component_id: comps[compKey].id, score: score, assessed_on: p.assessed_on,
+          assessed_by: ctx.userId, retake_no: retakeNo,
+        };
+        if (supersedes) { row.supersedes_id = supersedes; row.correction_reason = why; }
+        return uow.append('assessments', row, actorOf(ctx), yearOf(p.assessed_on));
+      };
+      let retakeNo;
+      let changed = 0;
+      if (!correcting) {
+        if (given.kitchen === undefined && given.manager === undefined) throw bad('kitchen_feedback', 'REQUIRED', 'At least one feedback score is needed.');
+        officerCheck(uow, p.officer_ids);
+        if (!d.course && p.course_program === undefined) throw bad('course_program', 'REQUIRED', 'The TL course program grade is required at the first attempt.');
+        if (d.course && p.course_program !== undefined && !reason) throw bad('correction_reason', 'REQUIRED', 'A reason is required to replace the course program grade.');
+        retakeNo = (d.latest ? d.latest.retake_no : 0) + 1;
+        ['checklist', 'exam', 'kitchen', 'manager'].forEach((k) => { if (given[k] !== undefined) { add(k, given[k], retakeNo); changed++; } });
+        if (p.course_program !== undefined) {
+          add('course', p.course_program, retakeNo, d.course ? d.course.id : null, reason);
+        }
+        p.officer_ids.forEach((uid) => uow.append('tl_certifying_officers', { tl_enrollment_id: e0.id, user_id: uid, retake_no: retakeNo }, actorOf(ctx)));
+      } else {
+        if (!reason) throw bad('correction_reason', 'REQUIRED', 'A reason is required to correct a certification check.');
+        retakeNo = d.latest.retake_no;
+        ['checklist', 'exam', 'kitchen', 'manager'].forEach((k) => {
+          if (given[k] === undefined) return;
+          const cur = d.latest.rows.find((r) => r.component_id === comps[k].id);
+          if (cur && cur.score === given[k]) return;
+          add(k, given[k], retakeNo, cur ? cur.id : null, reason);
+          changed++;
+        });
+        if (p.course_program !== undefined && !(d.course && d.course.score === p.course_program)) {
+          add('course', p.course_program, retakeNo, d.course ? d.course.id : null, reason);
+          changed++;
+        }
+        if (p.visit_report_url !== undefined && tidy(p.visit_report_url) !== e0.visit_report_url) changed++;
+        if (changed === 0) throw bad('correction_reason', 'NO_CHANGE', 'Nothing was changed.');
+      }
+      const after = derive(load(uow, e0.id));
+      const attempt = after.attempts.find((a) => a.retake_no === retakeNo);
+      const final = TlRules.finalGrade(attempt.scores, weightsAt(attempt.assessed_on));
+      const patch = { final_grade: final };
+      if (p.visit_report_url !== undefined) patch.visit_report_url = p.visit_report_url;
+      if (!correcting) patch.status = 'Certification check';
+      save(uow, ctx, e0, patch);
+      if (!correcting) statusChange(uow, ctx, e0, 'Certification check', p.assessed_on, 'Attempt ' + retakeNo);
+      audit(uow, ctx, 'TL.CERT_CHECK_RECORDED', e0.id, { retake_no: retakeNo, final_grade: final, correction: correcting });
+    });
+  }
+
+  // The state every closing action reads: the snapshot, the derived values and the facts for TlRules.decide (strict).
+  function decided(uow, ctx, e0, action) {
+    const snap = load(uow, e0.id);
+    const d = derive(snap);
+    const facts = factsOf(snap, d, true);
+    refuse(TlRules.decide(action, e0.status, ctx.role, facts));
+    return { snap: snap, d: d, facts: facts };
+  }
+
+  function certify(ctx, p) {
+    return act(ctx, p, (uow, e0) => {
+      const x = decided(uow, ctx, e0, 'certify');
+      const date = x.d.latest.assessed_on;
+      save(uow, ctx, e0, {
+        status: 'Certified', certified_on: date, pass_mark_used: x.facts.passMark, weights_version: weightsVersion(date),
+      });
+      statusChange(uow, ctx, e0, 'Certified', date, '');
+      audit(uow, ctx, 'TL.CERTIFIED', e0.id, { certified_on: date, final_grade: e0.final_grade, pass_mark_used: x.facts.passMark });
+    });
+  }
+
+  function extend(ctx, p) {
+    return act(ctx, p, (uow, e0, today) => {
+      const x = decided(uow, ctx, e0, 'extend');
+      const days = settingInt('CFG-042', today);
+      const next = TlRules.addDays(e0.deadline, days);
+      const no = x.snap.exts.length + 1;
+      uow.append('tl_extensions', { tl_enrollment_id: e0.id, extension_no: no, old_deadline: e0.deadline, new_deadline: next, reason: p.reason }, actorOf(ctx));
+      save(uow, ctx, e0, { status: 'Extended', deadline: next });
+      statusChange(uow, ctx, e0, 'Extended', today, p.reason);
+      audit(uow, ctx, 'TL.EXTENDED', e0.id, { extension_no: no, old_deadline: e0.deadline, new_deadline: next });
+    });
+  }
+
+  function lookupOf(uow, id, category, field) {
+    const l = uow.get('lookups', id);
+    if (!l || !l.is_active || l.category !== category) throw bad(field, 'LINK', 'Not an active value of this list.');
+    return l;
+  }
+
+  function close(ctx, p) {
+    return act(ctx, p, (uow, e0, today) => {
+      decided(uow, ctx, e0, 'close');
+      lookupOf(uow, p.close_reason_id, 'tl_close_reason', 'close_reason_id');
+      save(uow, ctx, e0, { status: 'Failed', close_reason_id: p.close_reason_id });
+      statusChange(uow, ctx, e0, 'Failed', today, p.remark);
+      audit(uow, ctx, 'TL.FAILED', e0.id, { close_reason_id: p.close_reason_id });
+    });
+  }
+
+  function quit(ctx, p) {
+    return act(ctx, p, (uow, e0, today) => {
+      refuse(TlRules.decide('quit', e0.status, ctx.role, {}));
+      if (!uow.all('lookups').some((l) => l.category === 'tl_quit_reason' && l.is_active)) throw Errors.configMissing('CFG-018');
+      lookupOf(uow, p.quit_reason_lookup_id, 'tl_quit_reason', 'quit_reason_lookup_id');
+      if (p.quit_date < e0.entry_date || p.quit_date > today) throw bad('quit_date', 'RANGE', 'The quit date must be from the entry date to today.');
+      save(uow, ctx, e0, { status: 'Quit', quit_date: p.quit_date, quit_reason_lookup_id: p.quit_reason_lookup_id });
+      statusChange(uow, ctx, e0, 'Quit', p.quit_date, p.remark);
+      audit(uow, ctx, 'TL.QUIT', e0.id, { quit_date: p.quit_date, quit_reason_lookup_id: p.quit_reason_lookup_id });
+    });
+  }
+
+  function returnToProbation(ctx, p) {
+    return act(ctx, p, (uow, e0, today) => {
+      refuse(TlRules.decide('returnToProbation', e0.status, ctx.role, {}));
+      save(uow, ctx, e0, { status: 'Probationary' });
+      statusChange(uow, ctx, e0, 'Probationary', today, p.note);
+      audit(uow, ctx, 'TL.RETURNED_TO_PROBATION', e0.id, { from_status: e0.status });
+    });
+  }
+
+  function promote(ctx, p) {
+    return act(ctx, p, (uow, e0, today) => {
+      refuse(TlRules.decide('promote', e0.status, ctx.role, {}));
+      if (p.promoted_on < e0.certified_on || p.promoted_on > today) throw bad('promoted_on', 'RANGE', 'The promotion date must be from the certified date to today.');
+      save(uow, ctx, e0, { status: 'Promoted', promoted_on: p.promoted_on });
+      statusChange(uow, ctx, e0, 'Promoted', p.promoted_on, '');
+      audit(uow, ctx, 'TL.PROMOTED', e0.id, { promoted_on: p.promoted_on });
+    });
+  }
+
   // ---- reads --------------------------------------------------------------------------------------------------------
   function baseRows() {
     const cacheKey = 'tl:list:' + (Props.get(DATA_VERSION) || '0');
@@ -423,6 +578,33 @@ const TlService = (function () {
         }, IDRV),
         handler: recordEntryGrade,
       },
+      'tl.recordCertCheck': {
+        kind: 'W',
+        params: Object.assign({
+          assessed_on: { type: 'date', required: true },
+          checklist: { type: 'number', required: true, min: 0, max: 100 }, exam: { type: 'number', required: true, min: 0, max: 100 },
+          kitchen_feedback: { type: 'number', min: 0, max: 100 }, manager_feedback: { type: 'number', min: 0, max: 100 },
+          course_program: { type: 'number', min: 0, max: 100 }, officer_ids: { type: 'array' },
+          visit_report_url: { type: 'text', max: 500 }, correction_reason: { type: 'text', max: 500 },
+        }, IDRV),
+        handler: recordCertCheck,
+      },
+      'tl.certify': { kind: 'W', params: IDRV, handler: certify },
+      'tl.extend': { kind: 'W', params: Object.assign({ reason: { type: 'text', required: true, max: 500 } }, IDRV), handler: extend },
+      'tl.close': {
+        kind: 'W',
+        params: Object.assign({ close_reason_id: { type: 'text', required: true, max: 40 }, remark: { type: 'text', max: 1000 } }, IDRV),
+        handler: close,
+      },
+      'tl.quit': {
+        kind: 'W',
+        params: Object.assign({
+          quit_date: { type: 'date', required: true }, quit_reason_lookup_id: { type: 'text', required: true, max: 40 }, remark: { type: 'text', max: 1000 },
+        }, IDRV),
+        handler: quit,
+      },
+      'tl.returnToProbation': { kind: 'W', params: Object.assign({ note: { type: 'text', required: true, max: 1000 } }, IDRV), handler: returnToProbation },
+      'tl.promote': { kind: 'W', params: Object.assign({ promoted_on: { type: 'date', required: true } }, IDRV), handler: promote },
     };
   }
 

@@ -58,9 +58,13 @@ function setupTl(opts = {}) {
     return id;
   };
   env.officerIds = () => [env.users.officer.id];
-  env.cert = (id, over, token) => env.call('tl.recordCertCheck', Object.assign({
-    id, row_version: env.rv(id), assessed_on: '2026-10-20', checklist: 95, exam: 90, kitchen_feedback: 92, course_program: 95, officer_ids: env.officerIds(),
-  }, over || {}), token || env.t.officer);
+  // The course program grade is sent only while the record has none, as the first attempt needs it and a later one does not.
+  env.cert = (id, over, token) => {
+    const hasCourse = env.rows('assessments').some((a) => a.subject_id === id && a.component_id === CERT.course);
+    const base = { id, row_version: env.rv(id), assessed_on: '2026-10-20', checklist: 95, exam: 90, kitchen_feedback: 92, officer_ids: env.officerIds() };
+    if (!hasCourse) base.course_program = 95;
+    return env.call('tl.recordCertCheck', Object.assign(base, over || {}), token || env.t.officer);
+  };
   env.certOk = (id, over, token) => {
     const r = env.cert(id, over, token);
     if (!r.ok) throw new Error('cert failed: ' + JSON.stringify(r));
