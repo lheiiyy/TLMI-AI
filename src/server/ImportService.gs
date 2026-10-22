@@ -617,6 +617,133 @@ const ImportService = (function () {
     });
   }
 
+  // ---- the commit (spec 10.5) ---------------------------------------------------------------------------------------
+  const yearOf = (iso) => Number(String(iso).slice(0, 4));
+
+  // Writes one READY row: the person (reused by legacy_ref), the NAME aliases, the enrollment, its grades and officers, its first
+  // status_history row and the TL.ENROLLED audit row. Returns the enrollment id.
+  function writeRow(uow, ctx, batch, row, item) {
+    const a = actorOf(ctx);
+    const per = item.plan.person;
+    let person = uow.all('persons').find((x) => x.legacy_ref === per.legacy_ref);
+    if (!person) {
+      person = PersonService.create(uow, ctx, {
+        last_name: per.last_name, first_name: per.first_name, middle_name: per.middle_name, suffix: per.suffix, legacy_ref: per.legacy_ref,
+      });
+    }
+    per.spellings.forEach((sp) => PersonService.addAlias(uow, ctx, person.id, 'NAME', sp));
+    const fields = Object.assign({}, item.plan.enrollment, { person_id: person.id });
+    const enr = uow.insert('tl_enrollments', fields, a, yearOf(fields.entry_date));
+    item.plan.grades.forEach((g) => {
+      const v = {
+        subject_type: 'TL_ENROLLMENT', subject_id: enr.id, component_id: g.component_id, score: g.score, assessed_on: g.assessed_on,
+        retake_no: g.retake_no, legacy_ref: g.legacy_ref,
+      };
+      if (g.assessed_by) v.assessed_by = g.assessed_by;
+      uow.append('assessments', v, a, yearOf(g.assessed_on));
+    });
+    item.plan.officers.forEach((uid) => uow.append('tl_certifying_officers', { tl_enrollment_id: enr.id, user_id: uid, retake_no: 1 }, a));
+    TlService.statusChange(uow, ctx, { id: enr.id, status: '' }, enr.status, item.plan.status_date, 'Legacy import ' + batch.id + ' row ' + row.source_row);
+    AuditService.event(uow, ctx, {
+      event: 'TL.ENROLLED', entity: 'tl_enrollments', entityId: enr.id,
+      detail: { source: 'LEGACY_IMPORT', import_id: batch.id, source_row: row.source_row, person_id: person.id },
+    });
+    return enr.id;
+  }
+
+  // One chunk, in the transaction uow: up to CHUNK_ROWS READY rows. The plan is made again from the same inputs and the
+  // current state, and a row is written only if it is still READY with the same legacy_ref; otherwise it is re-judged and left.
+  // totals carries the counts of the whole call; the call's audit row goes into the last chunk of the call.
+  function commitChunk(ctx, p, g, first, lastChunkOfCall, totals) {
+    return Repository.transact((uow) => {
+      const a = actorOf(ctx);
+      const batch = uow.get('import_batches', p.import_id);
+      if (!batch || batch.kind !== KIND) throw Errors.notFound('Import batch not found.');
+      // The version the caller saw, checked on the first chunk (nothing is written by an empty patch).
+      if (first) uow.update('import_batches', batch.id, {}, { expectedVersion: p.row_version, actor: a });
+      if (batch.status === 'Committed') return { remaining: 0, done: 0, held: 0, status: 'Committed', row_version: batch.row_version };
+      if (batch.status !== 'Validated' && batch.status !== 'Committing') {
+        throw Errors.validation([{ path: 'import_id', code: 'STATE', message: 'Only the latest validated batch can be committed.' }]);
+      }
+      const latest = latestBatch(uow);
+      if (!latest || latest.id !== batch.id) {
+        throw Errors.validation([{ path: 'import_id', code: 'NOT_LATEST', message: 'A newer validation exists. Commit the latest batch.' }]);
+      }
+      if (JSON.parse(batch.counts || '{}').input_hash !== g.fingerprint) {
+        throw Errors.validation([{ path: 'import_id', code: 'REVIEW_CHANGED', message: 'The legacy copy, the review sheet or the master data changed after this validation. Validate again.' }]);
+      }
+      const byRow = {};
+      plan(g.master, g.decisions, g.lists, readState(uow)).forEach((it) => { byRow[it.source_row] = it; });
+      const pending = uow.all('import_rows').filter((r) => r.import_id === batch.id && r.result === 'READY').sort((x, y) => x.source_row - y.source_row);
+      const take = pending.slice(0, CHUNK_ROWS);
+      let done = 0;
+      let held = 0;
+      take.forEach((row) => {
+        const it = byRow[row.source_row];
+        if (it && it.result === 'READY' && it.legacy_ref === row.legacy_ref) {
+          const id = writeRow(uow, ctx, batch, row, it);
+          uow.update('import_rows', row.id, { result: 'COMMITTED', created_record_type: 'tl_enrollments', created_record_id: id }, { expectedVersion: row.row_version, actor: a });
+          done++;
+          return;
+        }
+        // Something changed since the validation (for example the person was enrolled in the app): judge the row again, do not write it.
+        const patch = { result: it ? it.result : 'NOT_READY' };
+        if (it) { patch.issues = packed(it); if (it.skip_reason) patch.skip_reason = it.skip_reason; if (it.created_record_id) { patch.created_record_type = 'tl_enrollments'; patch.created_record_id = it.created_record_id; } }
+        uow.update('import_rows', row.id, patch, { expectedVersion: row.row_version, actor: a });
+        held++;
+      });
+      const remaining = pending.length - take.length;
+      const status = remaining > 0 ? 'Committing' : 'Committed';
+      const patch = { status: status };
+      if (status === 'Committed') patch.finished_at = Clock.iso();
+      const res = uow.update('import_batches', batch.id, patch, { expectedVersion: batch.row_version, actor: a });
+      if (lastChunkOfCall || remaining === 0) {
+        AuditService.event(uow, ctx, {
+          event: 'IMPORT.COMMITTED', entity: 'import_batches', entityId: batch.id,
+          detail: { committed: totals.committed + done, held: totals.held + held, remaining: remaining, status: status },
+        });
+      }
+      return { remaining: remaining, done: done, held: held, status: status, row_version: res.after.row_version, audited: lastChunkOfCall || remaining === 0 };
+    });
+  }
+
+  function commit(ctx, p) {
+    if (p.backup_date !== Clock.today()) {
+      throw Errors.validation([{ path: 'backup_date', code: 'BACKUP_DATE', message: 'The backup date must be today. It is a reminder to copy TLMI_DB first; the app cannot check that the copy exists.' }]);
+    }
+    const batch = needBatch(Repository, p.import_id);
+    const g = gather();
+    const totals = { committed: 0, held: 0 };
+    let last = { remaining: 0, status: batch.status, row_version: batch.row_version, audited: false };
+    let stopped = '';
+    for (let n = 0; n < CHUNKS_PER_CALL; n++) {
+      let res;
+      try {
+        res = commitChunk(ctx, p, g, n === 0, n === CHUNKS_PER_CALL - 1, totals);
+      } catch (e) {
+        // A busy system after at least one saved chunk is not a failure of the call: report the progress, the caller continues.
+        if (e instanceof AppError && e.code === 'BUSY' && totals.committed + totals.held > 0) { stopped = 'BUSY'; break; }
+        throw e;
+      }
+      totals.committed += res.done;
+      totals.held += res.held;
+      last = res;
+      if (res.remaining === 0) break;
+    }
+    if (totals.committed > 0) TlService.touch();
+    if (stopped && !last.audited) {
+      // The call ended early. Its audit row is written now if the system allows; every enrollment has its own TL.ENROLLED row anyway.
+      try {
+        Repository.transact((uow) => {
+          AuditService.event(uow, ctx, { event: 'IMPORT.COMMITTED', entity: 'import_batches', entityId: p.import_id, detail: { committed: totals.committed, held: totals.held, remaining: last.remaining, status: last.status, stopped: stopped } });
+        });
+      } catch (e) { /* swallowed on purpose: see above */ }
+    }
+    const now = Repository.get('import_batches', p.import_id);
+    const remaining = Repository.all('import_rows').filter((r) => r.import_id === p.import_id && r.result === 'READY').length;
+    return { committed: totals.committed, held: totals.held, remaining: remaining, status: now.status, row_version: now.row_version, stopped: stopped || undefined };
+  }
+
   const ID = { id: { type: 'text', required: true, max: 40 } };
 
   function methods() {
@@ -624,6 +751,11 @@ const ImportService = (function () {
       'import.validate': { kind: 'W', params: {}, handler: validate },
       'import.get': { kind: 'R', params: { import_id: { type: 'text', max: 40 } }, handler: get },
       'import.rows.list': { kind: 'R', params: Object.assign({ import_id: { type: 'text', required: true, max: 40 } }, Lists.PARAMS), handler: rowsList },
+      'import.commit': {
+        kind: 'W',
+        params: { import_id: { type: 'text', required: true, max: 40 }, row_version: { type: 'int', required: true }, backup_date: { type: 'date', required: true } },
+        handler: commit,
+      },
       'import.rows.skip': {
         kind: 'W',
         params: Object.assign({ row_version: { type: 'int', required: true }, skip_reason: { type: 'text', required: true, max: 500 } }, ID),

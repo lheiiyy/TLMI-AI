@@ -24,6 +24,7 @@ const EXPECTED = {
   'components.list': ['A'],
   'components.update': ['A'],
   'history.get': ['A'],
+  'import.commit': ['A'],
   'import.get': ['A'],
   'import.rows.list': ['A'],
   'import.rows.skip': ['A'],
