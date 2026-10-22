@@ -20,17 +20,18 @@
 - STATUS pull request merged (#8, merge commit 78ab694). Browser test stability (issue #13): the sign-in screen showed its name list empty for a moment, and the test `lists active officers` read it too early; `fresh()` now waits for the names, and a test with a slow list keeps it from coming back.
 - Spreadsheets created by the reviewer in one Drive folder, "TLMI-AI": a dated copy of the legacy sheet with a `SEED_OFFICERS` tab, `TLMI_DB_DEV`, `TLMI_DB_TEST`, `TLMI_IMPORT_REVIEW_TEST`. IDs are not in the repo; Leo puts them in Script Properties.
 - Phase 2 spec, build plan and working agreement merged (#9, merge commit b4fbf88; the Reviewer's DECISION approves the build plan in Leo's place). Automation audit and the two task prompts merged (#10, merge commit 45ae807, on Leo's word). STATUS pull request merged (#8, merge commit 78ab694). `CLAUDE.md` follows the new merge rule (issue #12).
+- Phase 2 pull request E merged (#20, merge commit 31ebec0): Employee ID and password sign-in, the Admin PIN removed (exception X-1 ended in code). Spec section 4 amended after its review (#21, merge commit ea9b15b).
 
 ## Next
 
 - Leo does the one-time setup on DEV and TEST in [docs/SETUP.md](SETUP.md) and runs the gate G1 checks in [docs/G1-CHECKLIST.md](G1-CHECKLIST.md). Phase 1 is complete in code; gate G1 is closed only after those checks, and after the timing from `measureHash` and the number format `0.######` have been looked at on TEST.
-- Phase 2 pull request E (part 2A, tasks 1 to 7: Employee ID and password sign-in, per-user pause, session epochs, temporary passwords, `initFirstAdmin` and `initAdminPassword`, sign-in, change-password and Users screens) is built and waits for the Reviewer (round 2 fixes the Reviewer's findings 1 to 4: a wrong current password in `auth.changePassword` counts and pauses like a wrong sign-in password; the two temporary password properties are trimmed; the Admin-exists message; the temporary-password box is cleared at sign-out). Next: pull request F (tasks 8 to 12), then G and H, each from an updated `main`. Do not deploy: the `users` tab of an existing database needs four new columns first ([docs/SETUP.md](SETUP.md) section 3).
+- Phase 2 pull request F (part 2B, tasks 8 to 12: the Team Leader tables, `TlRules`, `PersonService`, `TlService` with every `tl.*` method, `persons.*`, the settings TLMI-001 and CFG-047, the TL course program component) is built and waits for the Reviewer. Next: pull request G (tasks 13 and 14: the Team Leader screens and browser tests), then H (tasks 15 to 18: the legacy import), each from an updated `main`. Do not deploy: an existing database needs the four `users` columns first ([docs/SETUP.md](SETUP.md) section 3).
 - Admin sets the extension limit (CFG-047) and the quit reasons (CFG-018) in the app before the first extension and the first quit. Settle the probation start in TDMS before gate G2 (interim X-2).
 
 ## Blockers and open items
 
 - Open items are listed in [docs/DECISIONS.md](DECISIONS.md) and in spec §12.
-- App code: the whole Phase 1 server, the client (sign-in, master lists, Admin screens) and the tools. 310 unit tests and 59 browser tests pass. Nothing is deployed yet.
+- App code: the whole Phase 1 server, the client (sign-in, master lists, Admin screens) and the tools. 399 unit tests and 59 browser tests pass. Nothing is deployed yet.
 - Branch `docs/scaffold` and the other merged branches could not be deleted from the Code session (the proxy refuses branch deletion); Leo can delete them on GitHub.
 - Interim exception X-1 (name list plus Admin PIN) is ended in code by Phase 2 part 2A (pull request E). It is marked ended in `docs/DECISIONS.md` when 2A is deployed to TEST; Leo records the date. No real Team Leader record is loaded before that.
 - `clasp` login, the DEV and TEST script projects and the Script Properties are set up by Leo once (see [docs/SETUP.md](SETUP.md)).
