@@ -1,0 +1,77 @@
+<!-- Static structure of the Team Leader screens. tl.js fills the slots; it never builds markup from data with innerHTML. -->
+
+<template id="view-tl-list">
+  <section class="section" data-view="tl-list">
+    <header>
+      <h1>Team Leaders</h1>
+      <span class="count" data-slot="count"></span>
+      <button type="button" data-slot="enroll">Enroll a Team Leader</button>
+    </header>
+    <div data-slot="message" role="status"></div>
+    <form class="filters" data-slot="filters" novalidate>
+      <label class="field"><span>Search by name</span><input type="search" name="q" autocomplete="off"></label>
+      <label class="field"><span>Status</span><select name="status"></select></label>
+      <label class="field"><span>Store</span><select name="mother_location_id"></select></label>
+      <label class="field"><span>Station</span><select name="station_id"></select></label>
+      <label class="field"><span>Batch</span><input type="text" name="batch_code" autocomplete="off"></label>
+      <label class="field"><span>Sort by</span>
+        <select name="sort"><option value="deadline">Deadline</option><option value="entry_date">Entry date</option><option value="name">Name</option></select>
+      </label>
+      <div class="checks">
+        <label><input type="checkbox" name="open"> Open only</label>
+        <label><input type="checkbox" name="overdue"> Overdue only</label>
+      </div>
+    </form>
+    <div data-slot="table"></div>
+    <div class="pager" data-slot="pager"></div>
+  </section>
+</template>
+
+<template id="view-tl-enroll">
+  <section class="section" data-view="tl-enroll">
+    <header>
+      <h1>Enroll a Team Leader</h1>
+      <button type="button" class="secondary" data-slot="back">Back to the list</button>
+    </header>
+    <div data-slot="message" role="status"></div>
+    <form class="panel wide" data-slot="form" novalidate aria-label="Enroll a Team Leader">
+      <h2>Person</h2>
+      <div data-slot="chosen"></div>
+      <div class="form-grid" data-slot="person-fields"></div>
+      <div class="actions"><button type="button" class="secondary" data-slot="find">Check for an existing person</button></div>
+      <div data-slot="candidates"></div>
+      <h2>Enrollment</h2>
+      <div class="form-grid" data-slot="enrollment-fields"></div>
+      <p class="hint" data-slot="deadline-note"></p>
+      <div data-slot="warning"></div>
+      <div class="actions">
+        <button type="submit" data-slot="save">Enroll</button>
+        <button type="button" class="secondary" data-slot="cancel">Cancel</button>
+      </div>
+    </form>
+  </section>
+</template>
+
+<template id="view-tl-record">
+  <section class="section" data-view="tl-record">
+    <header>
+      <h1 data-slot="title"></h1>
+      <button type="button" class="secondary" data-slot="back">Back to the list</button>
+    </header>
+    <div data-slot="message" role="status"></div>
+    <div data-slot="header"></div>
+    <div class="tabs" role="tablist" aria-label="Record sections">
+      <button type="button" role="tab" data-tab="record" aria-selected="true">Record</button>
+      <button type="button" role="tab" data-tab="history" aria-selected="false">History</button>
+    </div>
+    <div data-pane="record">
+      <section class="block" data-slot="entry-grades"></section>
+      <section class="block" data-slot="checks"></section>
+      <section class="block" data-slot="extensions"></section>
+      <section class="block" data-slot="actions"></section>
+    </div>
+    <div data-pane="history" hidden>
+      <section class="block" data-slot="history"></section>
+    </div>
+  </section>
+</template>

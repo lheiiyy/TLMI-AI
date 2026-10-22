@@ -25,6 +25,9 @@ for (const role of ROLES) {
   test(role + ': the menu follows the role, and the server decides', async ({ page }) => {
     await fresh(page);
     await signInAs(page, role);
+    // Team Leaders is open to all five roles and is the first entry of the menu
+    await expect(page.locator('[data-nav="tl"]')).toHaveCount(1);
+    expect(await page.locator('#nav button').first().getAttribute('data-nav')).toBe('tl');
     for (const id of ADMIN_ENTRIES) {
       await expect(page.locator('[data-nav="' + id + '"]')).toHaveCount(role === 'admin' ? 1 : 0);
     }
@@ -57,7 +60,10 @@ test('Senior Training Manager sees the audit log, without HR numbers', async ({ 
   const table = page.locator('#main table');
   await expect(table.locator('tbody tr').first()).toBeVisible();
   await expect(table).toContainText('AUTH.SIGNIN');
-  await expect(table).toContainText('SEED.RUN');
+  // the invented Team Leader records fill the first page; the seed run is found with the event filter
+  await page.fill('[name="event"]', 'SEED.RUN');
+  await page.click('button:has-text("Show")');
+  await expect(page.locator('#main table')).toContainText('SEED.RUN');
   await expect(table).not.toContainText('9105');
   await expect(page.locator('#main th', { hasText: 'HR number' })).toHaveCount(0);
 });
@@ -101,7 +107,7 @@ for (const width of WIDTHS) {
       await signInAs(page, role);
       await expect(page.locator('[data-section="stores"]')).toContainText('SECOND TEST STORE');
       await noHorizontalScroll(page);
-      const entries = ['home'];
+      const entries = ['tl', 'home'];
       if (SETTINGS_ROLES.includes(role)) entries.push('settings');
       if (AUDIT_ROLES.includes(role)) entries.push('audit');
       if (role === 'admin') entries.push(...ADMIN_ENTRIES);
@@ -110,6 +116,17 @@ for (const width of WIDTHS) {
         await expect(page.locator('#main h1, #main h2').first()).toBeVisible();
         await expect(page.locator('#main .notice.error')).toHaveCount(0);
         await noHorizontalScroll(page);
+        if (id === 'tl') {
+          await expect(page.locator('[data-view="tl-list"] tbody tr').first()).toBeVisible();
+          await page.click('[data-slot="enroll"]');
+          await expect(page.locator('[data-view="tl-enroll"]')).toBeVisible();
+          await noHorizontalScroll(page);
+          await page.click('[data-slot="back"]');
+          await expect(page.locator('[data-view="tl-list"] tbody tr').first()).toBeVisible();
+          await page.click('[data-open="TLE-2026-0003"]');
+          await expect(page.locator('[data-view="tl-record"] [data-slot="header"]')).toContainText('Certification check');
+          await noHorizontalScroll(page);
+        }
       }
       await page.click('#signout');
       await expect(page.locator('#screen-signin')).toBeVisible();

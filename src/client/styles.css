@@ -39,7 +39,7 @@ p { margin: 0 0 .75rem; max-width: 70ch; }
 .field > span, .field > label > span { display: block; font-weight: 600; margin-bottom: .3rem; }
 .field > label input[type="checkbox"] { width: 1.25rem; height: 1.25rem; vertical-align: middle; }
 .field small { display: block; color: var(--muted); margin-top: .25rem; }
-select, input[type="text"], input[type="search"], input[type="password"], input[type="number"], textarea {
+select, input[type="text"], input[type="search"], input[type="password"], input[type="number"], input[type="date"], input[type="url"], textarea {
   width: 100%; min-height: 2.9rem; padding: .55rem .7rem; font: inherit; color: var(--ink);
   background: var(--surface); border: 1.5px solid #8fa09c; border-radius: 6px;
 }
@@ -135,3 +135,35 @@ pre.json { background: var(--surface); border: 1.5px solid var(--line); border-r
 /* A temporary password, shown once (Users screen). */
 .temp-password code { font-size: 1.25rem; letter-spacing: 0.04em; padding: 0.2rem 0.5rem; background: #eef1ef; border-radius: 4px; user-select: all; }
 .signin .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+
+/* ---------- Team Leader screens ---------- */
+.section > header h1 { margin: 0; margin-right: auto; }
+.filters { display: grid; grid-template-columns: 1fr; gap: 0 1rem; background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px; padding: 1rem 1rem .25rem; margin: 0 0 1rem; }
+.filters .checks { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; align-items: center; padding: 0 0 .9rem; }
+.filters .checks input { width: 1.25rem; height: 1.25rem; vertical-align: middle; }
+.pager { display: flex; align-items: center; gap: .75rem; margin: .75rem 0 0; }
+button.link { background: transparent; border: 0; color: var(--basil-dark); text-decoration: underline; padding: 0; min-height: 0; font-weight: 600; text-align: left; }
+button.link:hover { background: transparent; color: var(--basil); }
+table.grid tr.overdue td { color: var(--tomato); }
+table.grid tr.overdue td button.link { color: var(--tomato); }
+.overdue-text { color: var(--tomato); font-weight: 600; }
+.panel.wide { max-width: 52rem; }
+.hint { color: var(--muted); }
+.block { margin: 0 0 2rem; }
+.block h2 { margin-bottom: .5rem; }
+.tabs { display: flex; gap: .25rem; border-bottom: 1.5px solid var(--line); margin: 0 0 1rem; }
+.tabs button { background: transparent; color: var(--ink); border: 0; border-bottom: 3px solid transparent; border-radius: 0; font-weight: 400; }
+.tabs button:hover { background: var(--basil-wash); }
+.tabs button[aria-selected="true"] { border-bottom-color: var(--basil); font-weight: 600; }
+ul.candidates, ul.timeline { list-style: none; margin: 0 0 .75rem; padding: 0; }
+ul.candidates li { padding: .4rem 0; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+ul.timeline li { padding: .5rem 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+ul.timeline li.corrected { border-left: 4px solid var(--basil); padding-left: .6rem; }
+ul.timeline .when { color: var(--muted); font-variant-numeric: tabular-nums; }
+dl.kv dd { overflow-wrap: anywhere; }
+@media (min-width: 768px) {
+  .filters { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 1100px) {
+  .filters { grid-template-columns: repeat(4, 1fr); }
+}
