@@ -9,9 +9,25 @@ const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 
+// On Windows, npm and clasp are .cmd shims that spawnSync cannot start without a shell. git is a real executable. The
+// commands and arguments are fixed strings in this file; no user input goes into a command line.
+function spawnOptions(cmd, platform, cwd) {
+  return {
+    cwd: cwd,
+    encoding: 'utf8',
+    stdio: cmd === 'git' ? ['ignore', 'pipe', 'inherit'] : 'inherit',
+    shell: platform === 'win32' && (cmd === 'npm' || cmd === 'clasp')
+  };
+}
+
 function defaultRun(cmd, args, opts) {
-  const r = spawnSync(cmd, args, { cwd: (opts && opts.cwd) || ROOT, encoding: 'utf8', stdio: cmd === 'git' ? ['ignore', 'pipe', 'inherit'] : 'inherit' });
+  const r = spawnSync(cmd, args, spawnOptions(cmd, process.platform, (opts && opts.cwd) || ROOT));
   return { status: r.status === null ? 1 : r.status, stdout: r.stdout || '', error: r.error };
+}
+
+// A command that could not be started at all (r.error is set) is reported as such, not as a failed test or push.
+function notStarted(cmd, r) {
+  return r && r.error ? new Error('Could not run ' + cmd + ': ' + (r.error.message || String(r.error))) : null;
 }
 
 function deploy(env, opts) {
@@ -29,18 +45,21 @@ function deploy(env, opts) {
   try { scriptId = JSON.parse(fs.readFileSync(claspFile, 'utf8')).scriptId; } catch (e) { throw new Error(file + ' is not valid JSON.'); }
   if (typeof scriptId !== 'string' || scriptId === '') throw new Error(file + ' has no scriptId.');
 
-  if (o.run('npm', ['test']).status !== 0) throw new Error('The unit tests failed. Nothing was pushed.');
+  const tested = o.run('npm', ['test']);
+  if (notStarted('npm', tested)) throw notStarted('npm', tested);
+  if (tested.status !== 0) throw new Error('The unit tests failed. Nothing was pushed.');
   o.build();
   const dist = path.join(o.root, 'dist');
   fs.writeFileSync(path.join(dist, '.clasp.json'), JSON.stringify({ scriptId: scriptId, rootDir: '.' }));
 
   const pushed = o.run('clasp', ['push', '--force'], { cwd: dist });
+  if (notStarted('clasp', pushed)) throw notStarted('clasp', pushed);
   if (pushed.status !== 0) throw new Error('clasp push failed. Is clasp installed (npm install -g @google/clasp) and are you logged in (clasp login)?');
   o.log('Pushed to ' + env.toUpperCase() + '. The web app is not redeployed by this: see docs/SETUP.md for the deployment step.');
   return { env: env };
 }
 
-module.exports = { deploy };
+module.exports = { deploy, spawnOptions };
 
 if (require.main === module) {
   try {
