@@ -55,7 +55,7 @@ Leading and trailing spaces are not part of a password: the app removes them eve
 ## 4. First push
 
 1. Commit everything (the deploy command refuses a dirty tree).
-2. `npm run deploy:dev`. For TEST: `npm run deploy:test`. The command runs the unit tests, builds `dist/` and runs `clasp push` from `dist/`. It refuses `live`.
+2. `npm run deploy:dev`. For TEST: `npm run deploy:test`. The command runs the unit tests, builds `dist/` and runs `clasp push` from `dist/`. It refuses `live`. On Windows use Command Prompt or PowerShell; Node 22 or later (24 works).
 
 ## 5. Setup functions, in the Apps Script editor
 

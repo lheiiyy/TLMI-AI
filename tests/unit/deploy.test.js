@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { deploy } = require('../../tools/deploy');
+const { deploy, spawnOptions } = require('../../tools/deploy');
 
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tlmi-deploy-'));
@@ -98,5 +98,40 @@ test('the deploy command line never prints the script id', () => {
   deploy('dev', { root: root, run: run, build: () => { fs.mkdirSync(path.join(root, 'dist'), { recursive: true }); return []; }, log: (m) => logs.push(m) });
   assert.ok(!logs.join('\n').includes('dev-script-id-placeholder'));
   assert.ok(!run.calls.join('\n').includes('dev-script-id-placeholder'));
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('spawnOptions uses a shell for npm and clasp on Windows only', () => {
+  assert.equal(spawnOptions('npm', 'win32', '/x').shell, true);
+  assert.equal(spawnOptions('clasp', 'win32', '/x').shell, true);
+  assert.equal(spawnOptions('git', 'win32', '/x').shell, false);
+  for (const cmd of ['npm', 'clasp', 'git']) {
+    assert.equal(spawnOptions(cmd, 'linux', '/x').shell, false, cmd + ' on linux');
+    assert.equal(spawnOptions(cmd, 'darwin', '/x').shell, false, cmd + ' on darwin');
+  }
+  assert.equal(spawnOptions('npm', 'linux', '/x').cwd, '/x');
+  assert.deepEqual(spawnOptions('git', 'linux', '/x').stdio, ['ignore', 'pipe', 'inherit']);
+  assert.equal(spawnOptions('npm', 'linux', '/x').stdio, 'inherit');
+});
+
+test('deploy says the command could not be started when run returns an error', () => {
+  const root = sandbox();
+  fs.writeFileSync(path.join(root, '.clasp.dev.json'), JSON.stringify({ scriptId: 'dev-script-id-placeholder' }));
+  const calls = [];
+  const run = (cmd, args) => {
+    calls.push(cmd);
+    if (cmd === 'npm') return { status: 1, stdout: '', error: new Error('spawnSync npm ENOENT') };
+    return { status: 0, stdout: '' };
+  };
+  assert.throws(() => deploy('dev', { root: root, run: run, build: () => [], log: () => {} }), (e) => /Could not run npm: spawnSync npm ENOENT/.test(e.message) && !/tests failed/.test(e.message));
+  assert.ok(!calls.includes('clasp'));
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('deploy says the command could not be started when clasp cannot run', () => {
+  const root = sandbox();
+  fs.writeFileSync(path.join(root, '.clasp.dev.json'), JSON.stringify({ scriptId: 'dev-script-id-placeholder' }));
+  const run = (cmd) => (cmd === 'clasp' ? { status: 1, stdout: '', error: new Error('spawnSync clasp EINVAL') } : { status: 0, stdout: '' });
+  assert.throws(() => deploy('dev', { root: root, run: run, build: () => { fs.mkdirSync(path.join(root, 'dist'), { recursive: true }); return []; }, log: () => {} }), /Could not run clasp: spawnSync clasp EINVAL/);
   fs.rmSync(root, { recursive: true, force: true });
 });
