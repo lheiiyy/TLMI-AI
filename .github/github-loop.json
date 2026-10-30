@@ -1,0 +1,11 @@
+{
+  "owner": "lheiiyy",
+  "owner_name": "Leo",
+  "language": "Taglish",
+  "base": "main",
+  "branch_prefix": "claude/",
+  "owner_associations": [
+    "OWNER"
+  ],
+  "improve": true
+}
