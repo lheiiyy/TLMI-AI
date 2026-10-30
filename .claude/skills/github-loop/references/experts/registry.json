@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "about": "Experts that route.py can select. Add one with an entry here and a note of 25 lines or fewer; no code change. An expert is selected on any match: steps (the step being run), paths (regex on changed or planned files), words (regex on the request's Objective), risk (the change's risk tier) or min_files. Path patterns look at code files only, unless an entry sets match_docs. Routing only ever adds gates.",
+  "experts": [
+    {"id": "requirements", "note": "references/experts/requirements.md", "steps": ["plan", "revise"]},
+    {"id": "architecture", "note": "references/experts/architecture.md",
+     "words": ["architecture", "new system", "new project", "from scratch", "rewrite", "redesign", "integration", "platform"],
+     "min_files": 8},
+    {"id": "frontend", "note": "references/experts/frontend.md",
+     "paths": ["\\.(html?|css|scss|jsx|tsx|vue|svelte)$", "(^|/)(ui|web|frontend|screens?|components?|pages?|public)/"],
+     "words": ["screen", "page", "\\bui\\b", "mobile", "tablet", "layout", "\\bform\\b"]},
+    {"id": "backend", "note": "references/experts/backend.md",
+     "paths": ["\\.(gs|py|go|rb|java|php|cs|rs|m?js|ts)$", "(^|/)(server|api|services?|backend|src)/"],
+     "words": ["\\bapi\\b", "endpoint", "service", "server", "apps script"]},
+    {"id": "appsscript", "note": "references/experts/appsscript.md",
+     "paths": ["\\.gs$", "(^|/)appsscript\\.json$"],
+     "words": ["apps script", "google sheets", "\\bclasp\\b"]},
+    {"id": "database", "note": "references/experts/database.md",
+     "paths": ["schema", "migration", "\\.sql$", "(^|/)(db|database|repositor(y|ies)|models?)(/|\\.)"],
+     "words": ["schema", "migration", "database", "spreadsheet", "\\bsheets?\\b", "\\btables?\\b"]},
+    {"id": "security", "note": "references/experts/security.md", "risk": ["high"],
+     "words": ["login", "password", "\\bpin\\b", "permission", "\\broles?\\b", "secret", "token", "credential"]},
+    {"id": "qa", "note": "references/experts/qa.md", "steps": ["build", "fix", "review"]},
+    {"id": "deployment", "note": "references/experts/deployment.md",
+     "paths": ["^\\.github/workflows/", "deploy", "\\.clasp", "(^|/)appsscript\\.json$", "(^|/)Dockerfile$", "(^|/)\\.env"],
+     "words": ["deploy", "release", "staging", "production", "hosting", "github pages"]},
+    {"id": "documentation", "note": "references/experts/documentation.md",
+     "paths": ["\\.(md|txt|rst)$"], "match_docs": true,
+     "words": ["readme", "\\bdocs?\\b", "documentation", "\\bguide\\b"]}
+  ]
+}
