@@ -1,0 +1,17 @@
+name: tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # The loop's own tests (rules, router, fire script, workflow). Remove this line in a project that does not carry the skill's evals/ folder.
+      - run: python3 -B -m unittest discover -s .claude/skills/github-loop/evals -p "test_*.py"
+      # Add the project's own test command here, for example: npm ci && npm test

@@ -1,0 +1,60 @@
+name: Loop fire
+
+# Starts the Lead or Code scheduled task the moment the owner's GitHub activity gives it work.
+# The router (scripts/route_event.py) decides who runs and holds no secret; only scripts/fire.py
+# reads the four fire values. Details: .claude/skills/github-loop/references/events.md
+
+on:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      role:
+        description: Role to fire
+        type: choice
+        options: [lead, code]
+        default: lead
+      dry_run:
+        description: Print only, do not fire
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: loop-fire-${{ github.event.issue.number || 'manual' }}
+  cancel-in-progress: false
+
+jobs:
+  fire:
+    # Personal repositories: the owner is the account. For an organization repository, replace
+    # github.repository_owner with the owner's login (and pass the same login to the router below).
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the default branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Route the event
+        id: route
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          OWNER: ${{ github.repository_owner }}
+        run: python3 .claude/skills/github-loop/scripts/route_event.py --event "$EVENT_NAME" --payload "$GITHUB_EVENT_PATH" --owner "$OWNER" --output "$GITHUB_OUTPUT"
+      - name: Fire the roles
+        if: steps.route.outputs.roles != ''
+        env:
+          ROLES: ${{ steps.route.outputs.roles }}
+          ISSUE: ${{ steps.route.outputs.issue }}
+          EVENT_NAME: ${{ github.event_name }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          LOOP_LEAD_FIRE_URL: ${{ secrets.LOOP_LEAD_FIRE_URL }}
+          LOOP_LEAD_FIRE_TOKEN: ${{ secrets.LOOP_LEAD_FIRE_TOKEN }}
+          LOOP_CODE_FIRE_URL: ${{ secrets.LOOP_CODE_FIRE_URL }}
+          LOOP_CODE_FIRE_TOKEN: ${{ secrets.LOOP_CODE_FIRE_TOKEN }}
+        run: python3 .claude/skills/github-loop/scripts/fire.py --roles "$ROLES" --issue "$ISSUE" --event "$EVENT_NAME" $([ "$DRY_RUN" = "true" ] && echo --dry-run)

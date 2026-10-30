@@ -1,0 +1,154 @@
+name: Autopilot request
+description: The Lead plans one feature with a readiness check, you approve once, then Claude Code builds, the Lead reviews, and Code merges and reports.
+title: "Autopilot: "
+labels: ["to-code"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill the first eight fields; the rest are the owner's standard rules and can stay as they are.
+        The Lead posts a plan and readiness matrix within minutes of your request (up to 6 hours if the event trigger is not set up). Then comment `APPROVED` (capitals) to build and merge,
+        `REVISE: <notes>` to change the plan, or `CONTINUE: <answer>` to answer a question.
+        Tap **Comment**, not "Close with comment": closing hides the issue from the loop.
+        High-risk work (login, permissions, schema, deploys, workflows, the loop's own skill) waits for your Merge tap at the end.
+  - type: input
+    id: objective
+    attributes:
+      label: Objective
+      description: The automation goal, in one sentence.
+      placeholder: Add a monthly CSV export
+    validations:
+      required: true
+  - type: input
+    id: project
+    attributes:
+      label: Project
+      placeholder: My Project
+    validations:
+      required: true
+  - type: input
+    id: repo
+    attributes:
+      label: Repo
+      description: Claude stops if this is not the repo the issue is in.
+      value: {{repo}}
+    validations:
+      required: true
+  - type: input
+    id: feature
+    attributes:
+      label: Feature name
+      description: Short name, used for the plan file docs/plan-<feature>.md and the branch claude/<feature>.
+      placeholder: readme
+    validations:
+      required: true
+  - type: input
+    id: project-folder
+    attributes:
+      label: Project folder
+      description: Where the work lives. Leave empty for the repo root.
+      placeholder: app
+  - type: textarea
+    id: stack
+    attributes:
+      label: Stack
+      value: {{stack}}
+    validations:
+      required: true
+  - type: input
+    id: users
+    attributes:
+      label: Users
+      description: Who uses it. It must work on desktop, tablet and phone.
+    validations:
+      required: true
+  - type: dropdown
+    id: release-policy
+    attributes:
+      label: Release policy
+      options:
+        - no deploy
+        - staging automatic
+        - production after my CONTINUE release
+    validations:
+      required: true
+  - type: dropdown
+    id: model
+    attributes:
+      label: Model (leave Auto unless you want to force one)
+      description: Auto picks the model for each step by risk, sonnet by default and opus for sensitive code. Forcing a model changes how much budget the work uses.
+      options:
+        - Auto
+        - sonnet
+        - opus
+        - haiku
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      value: The repository is the source of truth. Read the existing docs first and don't re-read the whole codebase.
+  - type: textarea
+    id: phase-1
+    attributes:
+      label: "Phase 1: Plan (do this first, then stop)"
+      value: |
+        Write <project folder>/docs/plan-<feature>.md with these sections, each kept tight:
+        1. Business plan: problem, users, value, scope, out-of-scope, success metrics, risks, effort estimate.
+        2. Architecture: components, data flow, schema changes, integration points, migration path, key decisions with one-line reasons.
+        3. Task breakdown: ordered tasks, each with the responsible agent, the files touched and a pass/fail check.
+        4. Test plan: what gets tested, with which tooling, and what "tests pass" means.
+        5. Merge plan: branch name, merge method, the conditions for merging, the release policy, and three lines of their own: `Risk: low|normal|high`, `CI required: yes|no` and `Files in scope: <folders/ and files>`.
+        6. Readiness: READY / NEEDS SETUP / BLOCKED / NOT REQUIRED / UNVERIFIED for every dependency, and one checklist of what I must do by hand.
+        End the file with the line "AWAITING APPROVAL". Make no code changes in Phase 1.
+    validations:
+      required: true
+  - type: textarea
+    id: phase-2
+    attributes:
+      label: "Phase 2: Build, test, debug, merge (only after I reply \"APPROVED\")"
+      value: |
+        The approved plan authorizes everything in it, including the merge.
+        1. Create a feature branch. Implement the tasks in order, one commit per task.
+        2. Set up the test harness from the test plan, write the tests, run them.
+        3. Debug failures: find the root cause before fixing, fix the cause and not the symptom, then re-run.
+        4. The Lead reviews the exact head independently; Code fixes until the verdict is APPROVED.
+        5. When every acceptance criterion passes, merge to the main branch using the plan's merge method, verify the merge, and deploy only as the release policy says. Update the project docs with status, decisions and test results.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      value: |
+        - Repo identity gate: confirm the repo and project match the Repo field before any change. If they don't, stop.
+        - Do only what the approved plan says. No extra features, files or dependencies.
+        - Never commit secrets (API keys, clasp credentials, tokens). Assume authentication is already set up.
+        - Never force-push, rewrite history, or delete files or data outside the plan.
+        - Keep docs short and structured. Report only at checkpoints.
+  - type: textarea
+    id: stop-and-ask
+    attributes:
+      label: Stop and ask when
+      value: |
+        - Anything must change outside the approved plan (scope, schema, architecture).
+        - A fix needs a new dependency or external service.
+        - The same error survives 2 fix attempts.
+        - A merge conflict touches files outside the plan.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] The plan file existed and was approved before any code was written
+        - [ ] All planned tests ran and passed, with the output shown
+        - [ ] Merged to main with a clean working tree
+        - [ ] Docs updated with status, decisions and test results
+        - [ ] Final summary lists every file changed and the test results
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Progress evidence
+      value: Back every completion claim with a command output or a changed file.
